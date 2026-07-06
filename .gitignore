@@ -38,6 +38,7 @@ node_modules/
 frontend/dist/
 
 # 数据与模型（大文件不入库）
+data/
 backend/data/raw/
 backend/models/**/*.pkl
 

@@ -1,0 +1,48 @@
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / 编辑器
+.idea/
+*.iml
+.vscode/
+
+# 日志与临时文件
+*.log
+logs/
+*.tmp
+*.swp
+
+# 环境变量与机密
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+venv/
+.venv/
+
+# Node
+node_modules/
+frontend/dist/
+
+# 数据与模型（大文件不入库）
+backend/data/raw/
+backend/models/**/*.pkl
+
+# Docker
+.docker/
+
+# Playwright
+.playwright-mcp/

@@ -1,0 +1,33 @@
+{
+  "id": "m1-foundation",
+  "name": "m1-foundation",
+  "title": "M1 基础阶段 - 脚手架+采集+入库+基础查询",
+  "description": "",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "zidou-kiyn",
+  "assignee": "zidou-kiyn",
+  "createdAt": "2026-07-06",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-06-infra-scaffold",
+    "07-06-db-schema",
+    "07-06-collector-creprice",
+    "07-06-pipeline-clean-load",
+    "07-06-api-metadata-price",
+    "07-06-fe-search-chart-trend"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

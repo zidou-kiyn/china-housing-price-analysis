@@ -1,0 +1,11 @@
+{"file": "docs/README.md", "reason": "文档导航与阅读顺序，技术栈总览，关键已敲定决策"}
+{"file": "docs/01-需求规格说明.md", "reason": "功能/非功能需求、用例、验收标准——所有实现的判定依据"}
+{"file": "docs/02-系统架构设计.md", "reason": "四层架构、模块边界、数据流、部署拓扑、统一术语表"}
+{"file": "docs/03-数据采集设计.md", "reason": "数据源画像、Source 适配器接口、反爬策略、采集流水线"}
+{"file": "docs/04-数据模型与数据库设计.md", "reason": "ER 图、建表 DDL、索引策略、迁移策略、Redis 缓存设计"}
+{"file": "docs/05-后端API设计.md", "reason": "REST 端点契约、请求/响应示例、鉴权、错误码"}
+{"file": "docs/06-机器学习预测设计.md", "reason": "特征工程、模型选型、训练/评估流程、推理、版本化"}
+{"file": "docs/07-前端设计.md", "reason": "页面路由、组件结构、图表规格、地图方案、状态管理"}
+{"file": "docs/08-开发计划与里程碑.md", "reason": "三阶段任务分解、排期、验收标准"}
+{"file": "docs/09-工程规范与部署.md", "reason": "目录结构、环境配置、编码规范、Docker、CI、测试策略"}
+{"file": ".trellis/tasks/07-06-project-planning/research/crawler-source-survey.md", "reason": "Playwright 实测数据源调研结果，支撑混合数据源策略决策"}

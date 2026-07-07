@@ -42,6 +42,7 @@ function onCommand(command: string) {
               <el-dropdown-menu>
                 <el-dropdown-item v-if="auth.isAdmin" command="admin-users">用户管理</el-dropdown-item>
                 <el-dropdown-item v-if="auth.isAdmin" command="admin-data">数据管理</el-dropdown-item>
+                <el-dropdown-item v-if="auth.isAdmin" command="admin-models">模型管理</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>

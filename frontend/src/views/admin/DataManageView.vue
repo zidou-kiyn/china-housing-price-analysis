@@ -6,9 +6,10 @@ import {
   submitCollect,
   submitGeoFetch,
 } from '@/api/admin'
+import { usePolling } from '@/composables/usePolling'
 import type { AdminJob, CityCoverage } from '@/types'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 // ---- 城市覆盖表 ----
 const cities = ref<CityCoverage[]>([])
@@ -48,9 +49,9 @@ const historyJobs = ref<AdminJob[]>([])
 const historyTotal = ref(0)
 const historyPage = ref(1)
 const historyPageSize = 10
-let pollTimer: number | null = null
 
 const hasActiveJob = computed(() => activeJobs.value.length > 0)
+const { sync: syncPolling } = usePolling(loadJobs)
 
 async function loadJobs() {
   const resp = await fetchJobs(undefined, historyPage.value, historyPageSize)
@@ -65,16 +66,7 @@ async function loadJobs() {
   if (finishedNow) {
     await loadCities() // 任务完成后刷新覆盖状态
   }
-  syncPolling()
-}
-
-function syncPolling() {
-  if (hasActiveJob.value && pollTimer === null) {
-    pollTimer = window.setInterval(loadJobs, 3000)
-  } else if (!hasActiveJob.value && pollTimer !== null) {
-    window.clearInterval(pollTimer)
-    pollTimer = null
-  }
+  syncPolling(hasActiveJob.value)
 }
 
 // ---- 操作 ----
@@ -173,9 +165,6 @@ function formatTime(iso: string | null): string {
 
 onMounted(async () => {
   await Promise.all([loadCities(), loadJobs()])
-})
-onUnmounted(() => {
-  if (pollTimer !== null) window.clearInterval(pollTimer)
 })
 watch([page, pageSize], loadCities)
 watch(historyPage, loadJobs)

@@ -162,3 +162,12 @@ export interface CityCoverageListResponse {
   page_size: number
   items: CityCoverage[]
 }
+
+export interface ModelVersion {
+  model_name: string
+  version: string
+  trained_at: string
+  metrics: Record<string, number>
+  training_samples: number
+  is_active: boolean
+}

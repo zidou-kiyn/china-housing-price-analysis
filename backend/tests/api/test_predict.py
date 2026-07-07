@@ -1,4 +1,6 @@
-"""预测 API 端到端测试（真实库数据训练 + 推理落库）。"""
+"""预测 API 端到端测试（真实库数据训练 + 推理落库，训练走后台任务）。"""
+
+import asyncio
 
 import pytest
 import pytest_asyncio
@@ -6,9 +8,48 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import settings
+from app.models.admin_job import AdminJob
 from app.models.prediction import Prediction
 
 pytestmark = [pytest.mark.slow, pytest.mark.asyncio(loop_scope="session")]
+
+_TRAIN_JOB_IDS: list[int] = []
+
+
+async def _train_and_wait(client, admin_headers, payload: dict, timeout: float = 30.0) -> dict:
+    """提交训练任务并等待完成，返回展平的训练结果（model_version 等）。"""
+    resp = await client.post("/api/v1/admin/predict/train", json=payload, headers=admin_headers)
+    assert resp.status_code == 202, resp.text
+    job_id = resp.json()["id"]
+    _TRAIN_JOB_IDS.append(job_id)
+
+    deadline = asyncio.get_event_loop().time() + timeout
+    while asyncio.get_event_loop().time() < deadline:
+        job = (await client.get(f"/api/v1/admin/jobs/{job_id}", headers=admin_headers)).json()
+        if job["status"] in ("success", "failed"):
+            assert job["status"] == "success", job["error"]
+            r = job["result"][0]
+            return {
+                "model_name": r["model_name"],
+                "model_version": r["version"],
+                "metrics": r["metrics"],
+                "training_samples": r["training_samples"],
+            }
+        await asyncio.sleep(0.1)
+    raise TimeoutError(f"训练任务 #{job_id} 超时未结束")
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
+async def _clean_train_jobs():
+    yield
+    if not _TRAIN_JOB_IDS:
+        return
+    engine = create_async_engine(settings.database_url)
+    sf = async_sessionmaker(engine, expire_on_commit=False)
+    async with sf() as s:
+        await s.execute(delete(AdminJob).where(AdminJob.id.in_(_TRAIN_JOB_IDS)))
+        await s.commit()
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
@@ -17,11 +58,7 @@ async def trained_model(client, admin_headers, tmp_path_factory, monkeypatch_ses
     model_dir = tmp_path_factory.mktemp("models")
     monkeypatch_session.setattr(settings, "ml_model_dir", str(model_dir))
 
-    resp = await client.post(
-        "/api/v1/admin/predict/train", json={"city_code": "qz"}, headers=admin_headers
-    )
-    assert resp.status_code == 202, resp.text
-    return resp.json()
+    return await _train_and_wait(client, admin_headers, {"city_codes": ["qz"]})
 
 
 @pytest.fixture(scope="session")
@@ -57,22 +94,83 @@ class TestTrain:
 
     async def test_train_unknown_city_404(self, client, admin_headers):
         resp = await client.post(
-            "/api/v1/admin/predict/train", json={"city_code": "nope"}, headers=admin_headers
+            "/api/v1/admin/predict/train", json={"city_codes": ["nope"]}, headers=admin_headers
         )
         assert resp.status_code == 404
+
+    async def test_train_mutex_409(self, client, admin_headers, monkeypatch, trained_model):
+        """训练进行中再次提交返回 409（train_model 打桩拖慢）。"""
+        import time
+
+        from app.api.v1 import predictions
+
+        real_training = predictions.run_training
+
+        def slow_training(*args, **kwargs):
+            time.sleep(1.0)
+            return real_training(*args, **kwargs)
+
+        monkeypatch.setattr(predictions, "run_training", slow_training)
+
+        resp = await client.post(
+            "/api/v1/admin/predict/train", json={"city_codes": ["qz"]}, headers=admin_headers
+        )
+        assert resp.status_code == 202
+        job_id = resp.json()["id"]
+        _TRAIN_JOB_IDS.append(job_id)
+
+        resp2 = await client.post(
+            "/api/v1/admin/predict/train", json={"city_codes": ["qz"]}, headers=admin_headers
+        )
+        assert resp2.status_code == 409
+        assert resp2.json()["code"] == "JOB_CONFLICT"
+
+        # 等它跑完，避免影响后续用例
+        deadline = asyncio.get_event_loop().time() + 30
+        while asyncio.get_event_loop().time() < deadline:
+            job = (
+                await client.get(f"/api/v1/admin/jobs/{job_id}", headers=admin_headers)
+            ).json()
+            if job["status"] in ("success", "failed"):
+                break
+            await asyncio.sleep(0.1)
+
+    async def test_train_failure_marks_job_failed(
+        self, client, admin_headers, monkeypatch, trained_model
+    ):
+        from app.api.v1 import predictions
+
+        def broken_training(*args, **kwargs):
+            raise ValueError("训练样本不足")
+
+        monkeypatch.setattr(predictions, "run_training", broken_training)
+
+        resp = await client.post(
+            "/api/v1/admin/predict/train", json={"city_codes": ["qz"]}, headers=admin_headers
+        )
+        assert resp.status_code == 202
+        job_id = resp.json()["id"]
+        _TRAIN_JOB_IDS.append(job_id)
+
+        deadline = asyncio.get_event_loop().time() + 10
+        while asyncio.get_event_loop().time() < deadline:
+            job = (
+                await client.get(f"/api/v1/admin/jobs/{job_id}", headers=admin_headers)
+            ).json()
+            if job["status"] in ("success", "failed"):
+                break
+            await asyncio.sleep(0.1)
+        assert job["status"] == "failed"
+        assert "训练样本不足" in job["error"]
 
 
 class TestModelSwitch:
     async def test_xgboost_train_list_switch_predict(
         self, client, auth_headers, admin_headers, trained_model
     ):
-        resp = await client.post(
-            "/api/v1/admin/predict/train",
-            json={"model_name": "xgboost", "city_code": "qz"},
-            headers=admin_headers,
+        xgb = await _train_and_wait(
+            client, admin_headers, {"model_name": "xgboost", "city_codes": ["qz"]}
         )
-        assert resp.status_code == 202, resp.text
-        xgb = resp.json()
         assert xgb["model_name"] == "xgboost"
 
         # 未设置指针：两种模型都列出、均未激活

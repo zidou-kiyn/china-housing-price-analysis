@@ -21,7 +21,8 @@ class PredictionResponse(BaseModel):
 
 class TrainRequest(BaseModel):
     model_name: str = Field("random_forest", pattern="^(random_forest|xgboost)$")
-    city_code: str | None = None
+    # 训练数据范围：城市 code 列表；空 = 全部已采集数据
+    city_codes: list[str] = Field(default_factory=list)
 
     model_config = {"protected_namespaces": ()}
 
@@ -40,15 +41,5 @@ class ModelVersionOut(BaseModel):
 class ActiveModelRequest(BaseModel):
     model_name: str = Field(..., pattern="^(random_forest|xgboost)$")
     version: str = Field(..., pattern=r"^v\d+\.\d+$")
-
-    model_config = {"protected_namespaces": ()}
-
-
-class TrainResponse(BaseModel):
-    message: str
-    model_name: str
-    model_version: str
-    metrics: dict
-    training_samples: int
 
     model_config = {"protected_namespaces": ()}

@@ -1,5 +1,7 @@
 """预测查询与模型训练端点（docs/05 §3.6）。"""
 
+import asyncio
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -7,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session, require_admin, require_user
 from app.core.config import settings
+from app.core.database import async_session_factory
 from app.core.errors import ApiError
 from app.ml.features import build_region_series
 from app.ml.predict import rolling_predict
@@ -17,14 +20,15 @@ from app.models.district import District
 from app.models.prediction import Prediction
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import UserAccount
+from app.schemas.admin_job import AdminJobOut
 from app.schemas.predict import (
     ActiveModelRequest,
     ModelVersionOut,
     PredictionPointOut,
     PredictionResponse,
     TrainRequest,
-    TrainResponse,
 )
+from app.services import job_runner
 
 router = APIRouter(tags=["predictions"])
 
@@ -121,46 +125,79 @@ async def get_prediction(
     )
 
 
-@router.post("/admin/predict/train", response_model=TrainResponse, status_code=202)
+async def _run_train(
+    job_id: int,
+    model_name: str,
+    city_codes: list[str],
+    region_type: str | None,
+    region_ids: list[int] | None,
+) -> None:
+    """训练任务体：读数在独立 session，训练（同步 CPU 密集）放线程池避免阻塞事件循环。"""
+    async with async_session_factory() as db:
+        rows = await _load_snapshot_rows(db, region_type, region_ids)
+    series_list = build_region_series(rows)
+
+    meta = await asyncio.to_thread(
+        run_training, model_name, series_list, _store(), city_codes=city_codes
+    )
+    await job_runner.report_progress(
+        job_id,
+        1,
+        total=1,
+        result=[
+            {
+                "ok": True,
+                "model_name": meta["model_name"],
+                "version": meta["version"],
+                "metrics": meta["metrics"],
+                "training_samples": meta["training_samples"],
+            }
+        ],
+    )
+
+
+@router.post("/admin/predict/train", response_model=AdminJobOut, status_code=202)
 async def train_model(
     payload: TrainRequest,
     db: AsyncSession = Depends(get_session),
     _admin: UserAccount = Depends(require_admin),
 ):
-    city_codes: list[str] = []
+    """提交异步训练任务，返回 job；训练完成后新版本不自动激活。"""
     region_ids: list[int] | None = None
     region_type: str | None = None
 
-    if payload.city_code:
-        city = (
-            await db.execute(select(City).where(City.code == payload.city_code))
-        ).scalar_one_or_none()
-        if city is None:
-            raise ApiError(404, "城市不存在", "CITY_NOT_FOUND")
-        districts = (
-            (await db.execute(select(District.id).where(District.city_id == city.id)))
+    if payload.city_codes:
+        cities = (
+            (await db.execute(select(City).where(City.code.in_(payload.city_codes))))
             .scalars()
             .all()
         )
+        found = {c.code for c in cities}
+        missing = [c for c in payload.city_codes if c not in found]
+        if missing:
+            raise ApiError(404, f"城市不存在: {', '.join(missing[:10])}", "CITY_NOT_FOUND")
+        region_ids = list(
+            (
+                await db.execute(
+                    select(District.id).where(
+                        District.city_id.in_([c.id for c in cities])
+                    )
+                )
+            ).scalars()
+        )
         region_type = "district"
-        region_ids = list(districts)
-        city_codes = [payload.city_code]
+        if not region_ids:
+            raise ApiError(400, "所选城市暂无区县数据，请先采集", "VALIDATION_ERROR")
 
-    rows = await _load_snapshot_rows(db, region_type, region_ids)
-    series_list = build_region_series(rows)
-
-    try:
-        meta = run_training(payload.model_name, series_list, _store(), city_codes=city_codes)
-    except ValueError as exc:
-        raise ApiError(400, str(exc), "VALIDATION_ERROR")
-
-    return TrainResponse(
-        message="训练完成",
-        model_name=meta["model_name"],
-        model_version=meta["version"],
-        metrics=meta["metrics"],
-        training_samples=meta["training_samples"],
+    job = await job_runner.submit(
+        "train",
+        {"model_name": payload.model_name, "city_codes": payload.city_codes},
+        lambda job_id: _run_train(
+            job_id, payload.model_name, payload.city_codes, region_type, region_ids
+        ),
+        progress_total=1,
     )
+    return job
 
 
 @router.get("/admin/predict/models", response_model=list[ModelVersionOut])

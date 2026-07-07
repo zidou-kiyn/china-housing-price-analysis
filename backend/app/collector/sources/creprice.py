@@ -18,10 +18,10 @@ from app.collector.base import (
 )
 from app.collector.http_client import CrawlerHttpClient
 
-# 城市列表页每个城市/区县链接均在静态 HTML 中，用正则直接提取。
 _CITY_RE = re.compile(r'<a class="city[^"]*"[^>]*href="/city/([^"]+)\.html">([^<]+)</a>')
-_DIST_RE = re.compile(
-    r'<a class="dist"[^>]*href="/district/([^"]+)\.html\?city=([^"]+)">([^<]+)</a>'
+# 城市详情页中的区县链接：/district/CODE.html?city=CITY，文本可能包在 <span> 中
+_CITY_DIST_RE = re.compile(
+    r'href="/district/([A-Za-z0-9]+)\.html\?city=([a-z]+)"[^>]*>\s*(?:<span>)?([^<]+?)(?:</span>)?\s*</a>'
 )
 
 # 均价时序 JSON 的三条 series 名称。
@@ -49,9 +49,19 @@ class CrepriceSource(BaseSource):
         response = self.http.get(f"{self.BASE_URL}/rank/citySel.html")
         return self._parse_cities(response.text)
 
-    def fetch_districts(self) -> list[DistrictInfo]:
-        response = self.http.get(f"{self.BASE_URL}/rank/citySel.html")
-        return self._parse_districts(response.text)
+    def fetch_districts(self, city_code: str | None = None) -> list[DistrictInfo]:
+        if city_code:
+            return self._fetch_city_districts(city_code)
+        cities = self.fetch_cities()
+        all_districts: list[DistrictInfo] = []
+        for city in cities:
+            all_districts.extend(self._fetch_city_districts(city.code))
+        return all_districts
+
+    def _fetch_city_districts(self, city_code: str) -> list[DistrictInfo]:
+        """从城市详情页获取完整区县列表。"""
+        response = self.http.get(f"{self.BASE_URL}/city/{city_code}.html")
+        return self._parse_city_districts(response.text, city_code)
 
     @staticmethod
     def _parse_cities(html: str) -> list[CityInfo]:
@@ -63,13 +73,16 @@ class CrepriceSource(BaseSource):
         return list(seen.values())
 
     @staticmethod
-    def _parse_districts(html: str) -> list[DistrictInfo]:
-        """提取区县并按 (city_code, dist_code) 联合键去重（dist code 跨城市复用）。"""
-        seen: dict[tuple[str, str], DistrictInfo] = {}
-        for dist_code, city_code, name in _DIST_RE.findall(html):
-            key = (city_code, dist_code)
-            if key not in seen:
-                seen[key] = DistrictInfo(name=name.strip(), code=dist_code, city_code=city_code)
+    def _parse_city_districts(html: str, city_code: str) -> list[DistrictInfo]:
+        """从城市详情页提取区县，按 code 去重。"""
+        seen: dict[str, DistrictInfo] = {}
+        for dist_code, matched_city, name in _CITY_DIST_RE.findall(html):
+            if matched_city != city_code:
+                continue
+            if dist_code not in seen:
+                seen[dist_code] = DistrictInfo(
+                    name=name.strip(), code=dist_code, city_code=city_code
+                )
         return list(seen.values())
 
     # -- 均价时序 ----------------------------------------------------------------
@@ -104,9 +117,13 @@ class CrepriceSource(BaseSource):
         供给 series: value=均价, count=样本套数；关注 series: data=关注价；价值 series: data=价值价。
         缺失月份的 key 不存在，用 .get() 返回 None。
         """
+        raw_data = json_data.get("data", [])
+        if not isinstance(raw_data, list):
+            return []
         series_by_name = {
             series.get("chartsName"): series.get("rows", [])
-            for series in json_data.get("data", [])
+            for series in raw_data
+            if isinstance(series, dict)
         }
         supply_rows = series_by_name.get(_SERIES_SUPPLY, [])
         attention_rows = series_by_name.get(_SERIES_ATTENTION, [])
@@ -176,9 +193,12 @@ class CrepriceSource(BaseSource):
     def _parse_price_distribution(json_data: dict) -> list[dict]:
         """解析价格区间分布：section "6000-7000" → low/high，data 为占比(%)。"""
         series_list = json_data.get("data", [])
+        if not isinstance(series_list, list):
+            return []
+        dict_series = [s for s in series_list if isinstance(s, dict)]
         supply_series = next(
-            (s for s in series_list if s.get("chartsName") == _SERIES_SUPPLY),
-            series_list[0] if series_list else {},
+            (s for s in dict_series if s.get("chartsName") == _SERIES_SUPPLY),
+            dict_series[0] if dict_series else {},
         )
 
         records: list[dict] = []

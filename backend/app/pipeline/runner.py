@@ -75,6 +75,16 @@ class PipelineRunner:
                     stats["distributions"] += n
                     stats["logs"] += 1
 
+                    for dist in dist_list:
+                        dist_id = dist_map.get(dist.code)
+                        if dist_id is None:
+                            continue
+                        n = await self._load_district_distribution(
+                            session, source, city_code, dist.code, dist_id, job.id
+                        )
+                        stats["distributions"] += n
+                        stats["logs"] += 1
+
                     await finish_crawl_job(session, job, success=True)
 
                 except Exception as exc:
@@ -97,18 +107,16 @@ class PipelineRunner:
         t0 = time.perf_counter()
         try:
             cities = await asyncio.to_thread(source.fetch_cities)
-            districts = await asyncio.to_thread(source.fetch_districts)
+            city_districts = await asyncio.to_thread(source.fetch_districts, city_code)
 
             city_map = await upsert_cities(session, cities)
-
-            city_districts = [d for d in districts if d.city_code == city_code]
             dist_map = await upsert_districts(session, city_districts, city_map)
 
             elapsed = int((time.perf_counter() - t0) * 1000)
             await create_crawl_log(
                 session,
                 job_id=job_id,
-                url=f"{source.BASE_URL}/rank/citySel.html",
+                url=f"{source.BASE_URL}/city/{city_code}.html",
                 success=True,
                 status_code=200,
                 record_count=len(cities) + len(city_districts),
@@ -133,6 +141,7 @@ class PipelineRunner:
         job_id: int,
         fetch_fn,
         *args,
+        district_code: str | None = None,
     ) -> RawRecord:
         """调用采集方法并记录 crawl_log，返回 RawRecord。"""
         t0 = time.perf_counter()
@@ -141,7 +150,8 @@ class PipelineRunner:
             elapsed = int((time.perf_counter() - t0) * 1000)
 
             raw_path = save_raw(
-                raw.source, raw.city_code, raw.records, raw.data_type
+                raw.source, raw.city_code, raw.records, raw.data_type,
+                district_code=district_code,
             )
 
             await create_crawl_log(
@@ -180,7 +190,8 @@ class PipelineRunner:
         self, session, source, city_code, dist_code, dist_id, job_id
     ) -> int:
         raw = await self._fetch_and_log(
-            session, job_id, source.fetch_price_timeline, city_code, dist_code
+            session, job_id, source.fetch_price_timeline, city_code, dist_code,
+            district_code=dist_code,
         )
         cleaned = clean_price_timeline(raw.records)
         return await upsert_price_snapshots(session, cleaned, "district", dist_id)
@@ -195,15 +206,33 @@ class PipelineRunner:
         cleaned = clean_price_distribution(raw.records, year_month)
         return await upsert_price_distributions(session, cleaned, "city", city_id)
 
+    async def _load_district_distribution(
+        self, session, source, city_code, dist_code, dist_id, job_id
+    ) -> int:
+        raw = await self._fetch_and_log(
+            session, job_id, source.fetch_price_distribution, city_code, dist_code,
+            district_code=dist_code,
+        )
+        year_month = datetime.now().strftime("%Y-%m")
+        cleaned = clean_price_distribution(raw.records, year_month)
+        return await upsert_price_distributions(session, cleaned, "district", dist_id)
+
     async def _invalidate_cache(self, city_code: str) -> None:
         if self.redis is None:
             return
         try:
             keys = []
-            async for key in self.redis.scan_iter(f"price:{city_code}:*"):
-                keys.append(key)
-            async for key in self.redis.scan_iter(f"trend:{city_code}:*"):
-                keys.append(key)
+            for pattern in (
+                f"price:{city_code}:*",
+                f"trend:{city_code}:*",
+                "api:cities",
+                f"api:districts:{city_code}",
+                "api:trend:*",
+                "api:dist:*",
+                f"api:overview:{city_code}",
+            ):
+                async for key in self.redis.scan_iter(pattern):
+                    keys.append(key)
             if keys:
                 await self.redis.delete(*keys)
                 logger.info("已清除 %d 个缓存 key", len(keys))

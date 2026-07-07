@@ -40,6 +40,15 @@ class PipelineRunner:
         source = SourceRegistry.get(source_name)
         stats = {"snapshots": 0, "distributions": 0, "logs": 0, "errors": []}
 
+        # ¥/㎡ 时序管线只适用于声明 PRICE_TIMELINE 的源；指数类源（如 govstats）走独立路径，
+        # 直接拒绝以避免把指数值污染进 supply_price。
+        if not source.supports(DataType.PRICE_TIMELINE):
+            raise ValueError(
+                f"数据源 {source_name} 不支持 ¥/㎡ 时序采集"
+                f"（price_unit={getattr(source, 'price_unit', '?')}）；"
+                "指数类源需专用入库管线，参见 govstats 任务文档"
+            )
+
         # 按源能力自适应：不支持区县 / 分布的源跳过对应阶段，只跑城市级时序（最小能力）。
         supports_dist = source.supports(DataType.DISTRICTS)
         supports_distribution = source.supports(DataType.PRICE_DISTRIBUTION)

@@ -43,6 +43,8 @@ class DataType:
     DISTRICTS = "districts"
     PRICE_TIMELINE = "price_timeline"
     PRICE_DISTRIBUTION = "price_distribution"
+    # 价格指数（100 基准，非 ¥/㎡）。政府源专用，走独立入库路径，不进 ¥/㎡ 时序管线。
+    PRICE_INDEX = "price_index"
 
 
 class BaseSource(ABC):

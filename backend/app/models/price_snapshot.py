@@ -22,4 +22,6 @@ class PriceSnapshot(Base):
     attention_price: Mapped[int | None] = mapped_column()
     value_price: Mapped[int | None] = mapped_column()
     sample_count: Mapped[int | None] = mapped_column()
+    # 该行最后写入的数据源（多源溯源注记；不进唯一约束，latest-wins）
+    source: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

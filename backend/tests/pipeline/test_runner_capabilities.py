@@ -97,3 +97,19 @@ class TestCapabilityGating:
     async def test_skips_distribution(self, stats):
         # 源不支持 PRICE_DISTRIBUTION → 不产出分布，也不因缺方法报错
         assert stats["distributions"] == 0
+
+    async def test_snapshot_records_source(self, session_factory, stats):
+        # 入库快照写入了溯源 source 列
+        async with session_factory() as s:
+            city = (
+                await s.execute(select(City).where(City.code == _FAKE_CITY))
+            ).scalar_one()
+            sources = (
+                await s.execute(
+                    select(PriceSnapshot.source).where(
+                        PriceSnapshot.region_type == "city",
+                        PriceSnapshot.region_id == city.id,
+                    )
+                )
+            ).scalars().all()
+        assert sources and all(src == _FAKE_SOURCE for src in sources)

@@ -73,8 +73,9 @@ async def upsert_price_snapshots(
     records: list[dict],
     region_type: str,
     region_id: int,
+    source: str | None = None,
 ) -> int:
-    """批量 upsert 均价快照，返回入库行数。"""
+    """批量 upsert 均价快照，返回入库行数。source 记录该行最后写入的数据源（溯源注记）。"""
     if not records:
         return 0
     rows = [
@@ -86,6 +87,7 @@ async def upsert_price_snapshots(
             "attention_price": r.get("attention_price"),
             "value_price": r.get("value_price"),
             "sample_count": r.get("sample_count"),
+            "source": source,
         }
         for r in records
     ]
@@ -97,6 +99,7 @@ async def upsert_price_snapshots(
             "attention_price": stmt.excluded.attention_price,
             "value_price": stmt.excluded.value_price,
             "sample_count": stmt.excluded.sample_count,
+            "source": stmt.excluded.source,
         },
     )
     result = await session.execute(stmt)

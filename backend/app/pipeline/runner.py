@@ -204,7 +204,9 @@ class PipelineRunner:
             session, job_id, source.fetch_price_timeline, city_code, "allsq1"
         )
         cleaned = clean_price_timeline(raw.records)
-        return await upsert_price_snapshots(session, cleaned, "city", city_id)
+        return await upsert_price_snapshots(
+            session, cleaned, "city", city_id, source=source.source_name
+        )
 
     async def _load_district_timeline(
         self, session, source, city_code, dist_code, dist_id, job_id
@@ -214,7 +216,9 @@ class PipelineRunner:
             district_code=dist_code,
         )
         cleaned = clean_price_timeline(raw.records)
-        return await upsert_price_snapshots(session, cleaned, "district", dist_id)
+        return await upsert_price_snapshots(
+            session, cleaned, "district", dist_id, source=source.source_name
+        )
 
     async def _load_city_distribution(
         self, session, source, city_code, city_id, job_id

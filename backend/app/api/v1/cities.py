@@ -2,12 +2,13 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_cache, get_session
 from app.models.city import City
 from app.models.district import District
+from app.models.price_snapshot import PriceSnapshot
 from app.schemas.city import CityOut, DistrictOut
 
 router = APIRouter(prefix="/cities", tags=["cities"])
@@ -24,9 +25,20 @@ async def list_cities(
     if cached:
         return json.loads(cached)
 
-    # 仅返回已采集过的城市（有区县数据）；全国城市目录见管理端 /admin/collect/cities
+    # 返回可分析的城市：有区县数据，或有城市级价格快照（如 Kaggle 城市级历史源覆盖但无区县的城市）。
+    # 全国城市目录见管理端 /admin/collect/cities
+    has_city_snapshot = (
+        select(PriceSnapshot.id)
+        .where(
+            PriceSnapshot.region_type == "city",
+            PriceSnapshot.region_id == City.id,
+        )
+        .exists()
+    )
     result = await db.execute(
-        select(City).where(City.districts.any()).order_by(City.name)
+        select(City)
+        .where(or_(City.districts.any(), has_city_snapshot))
+        .order_by(City.name)
     )
     cities = [CityOut.model_validate(c) for c in result.scalars()]
     await cache.set("api:cities", json.dumps([c.model_dump() for c in cities]), ex=CACHE_TTL_CITIES)

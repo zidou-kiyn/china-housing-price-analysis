@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     debug: bool = False
+    log_level: str = "INFO"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

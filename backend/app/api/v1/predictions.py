@@ -10,13 +10,16 @@ from app.core.config import settings
 from app.core.errors import ApiError
 from app.ml.features import build_region_series
 from app.ml.predict import rolling_predict
-from app.ml.train import ModelStore, train_random_forest
+from app.ml.train import ModelStore
+from app.ml.train import train_model as run_training
 from app.models.city import City
 from app.models.district import District
 from app.models.prediction import Prediction
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import UserAccount
 from app.schemas.predict import (
+    ActiveModelRequest,
+    ModelVersionOut,
     PredictionPointOut,
     PredictionResponse,
     TrainRequest,
@@ -63,7 +66,7 @@ async def get_prediction(
     if region is None:
         raise ApiError(404, "区域不存在", "REGION_NOT_FOUND")
 
-    loaded = _store().load_latest("random_forest")
+    loaded = _store().load_active()
     if loaded is None:
         raise ApiError(404, "模型尚未训练，请先训练模型", "PREDICTION_NOT_FOUND")
     model, meta = loaded
@@ -147,7 +150,7 @@ async def train_model(
     series_list = build_region_series(rows)
 
     try:
-        meta = train_random_forest(series_list, _store(), city_codes=city_codes)
+        meta = run_training(payload.model_name, series_list, _store(), city_codes=city_codes)
     except ValueError as exc:
         raise ApiError(400, str(exc), "VALIDATION_ERROR")
 
@@ -158,3 +161,34 @@ async def train_model(
         metrics=meta["metrics"],
         training_samples=meta["training_samples"],
     )
+
+
+@router.get("/admin/predict/models", response_model=list[ModelVersionOut])
+async def list_models(_admin: UserAccount = Depends(require_admin)):
+    store = _store()
+    active = store.get_active()
+    return [
+        ModelVersionOut(
+            model_name=meta["model_name"],
+            version=meta["version"],
+            trained_at=meta["trained_at"],
+            metrics=meta["metrics"],
+            training_samples=meta["training_samples"],
+            is_active=active is not None
+            and active["model_name"] == meta["model_name"]
+            and active["version"] == meta["version"],
+        )
+        for meta in store.list_all()
+    ]
+
+
+@router.put("/admin/predict/models/active", response_model=list[ModelVersionOut])
+async def set_active_model(
+    payload: ActiveModelRequest,
+    _admin: UserAccount = Depends(require_admin),
+):
+    try:
+        _store().set_active(payload.model_name, payload.version)
+    except ValueError as exc:
+        raise ApiError(404, str(exc), "MODEL_NOT_FOUND")
+    return await list_models(_admin)

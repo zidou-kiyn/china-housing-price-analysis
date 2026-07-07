@@ -6,7 +6,7 @@ import pytest
 
 from app.ml.features import build_region_series, shift_month
 from app.ml.predict import rolling_predict
-from app.ml.train import ModelStore, train_random_forest
+from app.ml.train import ModelStore, train_model, train_random_forest
 
 
 def _synthetic_rows(regions: int = 3, months: int = 60):
@@ -73,6 +73,60 @@ class TestTrain:
         series = build_region_series(_synthetic_rows(regions=1, months=4))
         with pytest.raises(ValueError):
             train_random_forest(series, store)
+
+
+class TestTrainXgboost:
+    def test_metrics_meet_baseline(self, store):
+        series = build_region_series(_synthetic_rows())
+        meta = train_model("xgboost", series, store, city_codes=["qz"])
+        assert meta["metrics"]["r2"] >= 0.85
+        assert meta["ci_strategy"] == "residual"
+        assert meta["resid_std"] >= 0
+
+    def test_cv_recorded_and_beats_rf_mape(self, store, trained):
+        series, rf_meta = trained
+        xgb_meta = train_model("xgboost", series, store)
+        assert xgb_meta["cv"] is not None
+        assert xgb_meta["cv"]["folds"] == 3
+        assert set(xgb_meta["cv"]["best_params"]) == {"n_estimators", "max_depth", "learning_rate"}
+        assert len(xgb_meta["cv"]["fold_mapes"]) == 3
+        assert xgb_meta["metrics"]["mape"] <= rf_meta["metrics"]["mape"]
+
+    def test_small_sample_skips_cv(self, store):
+        # 每区域 13 个月 → lag_6 时 21 个样本，train 切分后 <30 → 跳过 CV
+        series = build_region_series(_synthetic_rows(regions=3, months=13))
+        meta = train_model("xgboost", series, store)
+        assert meta["cv"] is None
+
+    def test_unknown_algorithm_raises(self, store):
+        series = build_region_series(_synthetic_rows())
+        with pytest.raises(ValueError):
+            train_model("lightgbm", series, store)
+
+    def test_versions_isolated_per_model(self, store, trained):
+        series, _ = trained
+        train_model("xgboost", series, store)
+        assert store.versions("random_forest") == ["v1.0"]
+        assert store.versions("xgboost") == ["v1.0"]
+
+
+class TestXgboostRollingPredict:
+    def test_horizon_and_interval(self, store):
+        series = build_region_series(_synthetic_rows())
+        train_model("xgboost", series, store)
+        model, meta = store.load_latest("xgboost")
+        points = rolling_predict(model, meta, series[0], months_ahead=3)
+        assert len(points) == 3
+        for p in points:
+            assert p.confidence_lower <= p.predicted_price <= p.confidence_upper
+
+    def test_prediction_in_plausible_range(self, store):
+        series = build_region_series(_synthetic_rows())
+        train_model("xgboost", series, store)
+        model, meta = store.load_latest("xgboost")
+        last_price = series[0].prices[-1]
+        for p in rolling_predict(model, meta, series[0], months_ahead=3):
+            assert abs(p.predicted_price - last_price) / last_price < 0.2
 
 
 class TestRollingPredict:

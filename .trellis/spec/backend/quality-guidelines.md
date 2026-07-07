@@ -35,6 +35,11 @@ Validation commands: `.venv/bin/python -m ruff check app tests scripts`,
 - **ML feature hygiene**: all lag/rolling/pct features must be built from `shift`-ed
   history only (no current-month leakage) so training rows and inference rows are
   constructed by the same helper (`app/ml/features.py::_feature_row`).
+- **Active-model pointer**: prediction endpoints load models via
+  `ModelStore.load_active()` (pointer in `models/active.json`, admin-switchable via
+  `PUT /admin/predict/models/active`); missing/stale pointer falls back to latest
+  `random_forest`. New algorithms register in `app/ml/train.py::ALGORITHMS` and must
+  set `ci_strategy`/`resid_std` in meta so `rolling_predict` can build intervals.
 - **Ingestion cache invalidation**: `PipelineRunner` clears stale API caches after
   every run via `app.core.cache.invalidate_api_caches` (redis defaults to the global
   `redis_client`, so callers need not pass one). Any NEW `api:*` cache key family

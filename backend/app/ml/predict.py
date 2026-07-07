@@ -22,7 +22,9 @@ def rolling_predict(
 ) -> list[PredictionPoint]:
     """逐月滚动预测：预测值回填序列作为后续步骤的 lag 输入。
 
-    置信区间取 RF 各棵树预测的 均值 ± 1.96×标准差。
+    置信区间按 meta["ci_strategy"] 分派：
+    per_tree（RF）取各棵树预测的 均值 ± 1.96×标准差；
+    residual（XGBoost）取 预测值 ± 1.96×meta["resid_std"]。
     历史不足 MIN_HISTORY_MONTHS 或不足模型 lag 窗口时抛 ValueError。
     """
     if len(region_series.prices) < MIN_HISTORY_MONTHS:
@@ -43,9 +45,13 @@ def rolling_predict(
         if x is None:
             raise ValueError(f"历史数据不足模型窗口 {n_lags} 个月，无法预测")
 
-        per_tree = np.array([tree.predict(x.to_numpy())[0] for tree in model.estimators_])
-        y_hat = float(per_tree.mean())
-        margin = 1.96 * float(per_tree.std())
+        if meta.get("ci_strategy", "per_tree") == "per_tree":
+            per_tree = np.array([tree.predict(x.to_numpy())[0] for tree in model.estimators_])
+            y_hat = float(per_tree.mean())
+            margin = 1.96 * float(per_tree.std())
+        else:
+            y_hat = float(model.predict(x.to_numpy())[0])
+            margin = 1.96 * float(meta["resid_std"])
 
         points.append(
             PredictionPoint(

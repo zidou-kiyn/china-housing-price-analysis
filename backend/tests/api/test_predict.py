@@ -62,6 +62,85 @@ class TestTrain:
         assert resp.status_code == 404
 
 
+class TestModelSwitch:
+    async def test_xgboost_train_list_switch_predict(
+        self, client, auth_headers, admin_headers, trained_model
+    ):
+        resp = await client.post(
+            "/api/v1/admin/predict/train",
+            json={"model_name": "xgboost", "city_code": "qz"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 202, resp.text
+        xgb = resp.json()
+        assert xgb["model_name"] == "xgboost"
+
+        # 未设置指针：两种模型都列出、均未激活
+        resp = await client.get("/api/v1/admin/predict/models", headers=admin_headers)
+        assert resp.status_code == 200
+        models = resp.json()
+        assert {m["model_name"] for m in models} == {"random_forest", "xgboost"}
+        assert all(not m["is_active"] for m in models)
+
+        # 切换到 xgboost 后预测端点随之切换
+        resp = await client.put(
+            "/api/v1/admin/predict/models/active",
+            json={"model_name": "xgboost", "version": xgb["model_version"]},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        active = [m for m in resp.json() if m["is_active"]]
+        assert len(active) == 1
+        assert active[0]["model_name"] == "xgboost"
+
+        region_id = await _district_with_full_history(client, auth_headers)
+        resp = await client.get(
+            f"/api/v1/predict/{region_id}?region_type=district", headers=auth_headers
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["model_name"] == "xgboost"
+
+        # 切回 RF
+        resp = await client.put(
+            "/api/v1/admin/predict/models/active",
+            json={"model_name": "random_forest", "version": trained_model["model_version"]},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        resp = await client.get(
+            f"/api/v1/predict/{region_id}?region_type=district", headers=auth_headers
+        )
+        assert resp.json()["model_name"] == "random_forest"
+
+        # 清理两种模型写入的预测行
+        engine = create_async_engine(settings.database_url)
+        sf = async_sessionmaker(engine, expire_on_commit=False)
+        async with sf() as s:
+            await s.execute(
+                delete(Prediction).where(
+                    Prediction.region_id == region_id,
+                    Prediction.model_version.in_(
+                        [xgb["model_version"], trained_model["model_version"]]
+                    ),
+                )
+            )
+            await s.commit()
+        await engine.dispose()
+
+    async def test_switch_unknown_version_404(self, client, admin_headers, trained_model):
+        resp = await client.put(
+            "/api/v1/admin/predict/models/active",
+            json={"model_name": "xgboost", "version": "v9.9"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 404
+        assert resp.json()["code"] == "MODEL_NOT_FOUND"
+
+    async def test_models_requires_admin(self, client, auth_headers):
+        resp = await client.get("/api/v1/admin/predict/models", headers=auth_headers)
+        assert resp.status_code == 403
+
+
 class TestPredict:
     async def test_three_month_prediction(self, client, auth_headers, trained_model):
         region_id = await _district_with_full_history(client, auth_headers)

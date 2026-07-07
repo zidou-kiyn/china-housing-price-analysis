@@ -1,1 +1,2 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/tasks/07-07-full-data-crawl/notes.md", "reason": "执行状态、批次记录与续跑手册，跨会话执行的唯一状态源"}
+{"file": ".trellis/tasks/archive/2026-07/07-07-admin-data-collect/design.md", "reason": "所用采集/地图任务机制的技术设计（互斥、进度、幂等语义）"}

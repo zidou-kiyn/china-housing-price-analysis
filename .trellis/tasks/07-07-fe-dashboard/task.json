@@ -1,9 +1,9 @@
 {
-  "id": "m3-completion",
-  "name": "m3-completion",
-  "title": "M3 完善阶段",
-  "description": "M3 里程碑父任务：XGBoost 调优、可视化大屏、测试加固、部署文档（docs/08 §4）",
-  "status": "planning",
+  "id": "fe-dashboard",
+  "name": "fe-dashboard",
+  "title": "M3-2 可视化大屏多图联动",
+  "description": "DashboardView 多图联动：地图热力+区县排行+走势+分布，点选区域全图同步",
+  "status": "done",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -18,11 +18,8 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "07-07-ml-xgboost",
-    "07-07-fe-dashboard"
-  ],
-  "parent": null,
+  "children": [],
+  "parent": "07-07-m3-completion",
   "relatedFiles": [],
   "notes": "",
   "meta": {}

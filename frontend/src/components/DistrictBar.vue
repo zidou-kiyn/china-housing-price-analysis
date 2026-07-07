@@ -5,6 +5,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   data: DistrictOverviewItem[]
+  selectedName?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -18,7 +19,10 @@ function renderChart() {
   if (!chart || !props.data.length) return
 
   const names = props.data.map((d) => d.name)
-  const prices = props.data.map((d) => d.supply_price ?? 0)
+  const prices = props.data.map((d) => ({
+    value: d.supply_price ?? 0,
+    itemStyle: d.name === props.selectedName ? { color: '#E6A23C' } : undefined,
+  }))
 
   chart.setOption({
     title: { text: '区县均价对比', left: 'center', textStyle: { fontSize: 16 } },
@@ -60,7 +64,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', () => chart?.resize())
 })
 
-watch(() => props.data, renderChart, { deep: true })
+watch(() => [props.data, props.selectedName], renderChart, { deep: true })
 </script>
 
 <template>

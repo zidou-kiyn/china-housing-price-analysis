@@ -28,6 +28,7 @@ function onCommand(command: string) {
         <el-menu-item index="/rank">排行榜</el-menu-item>
         <el-menu-item index="/compare">区域对比</el-menu-item>
         <el-menu-item index="/map">地图热力</el-menu-item>
+        <el-menu-item index="/dashboard">大屏</el-menu-item>
       </el-menu>
 
       <div class="user-area">

@@ -12,6 +12,7 @@ from datetime import datetime
 from app.collector.base import (
     BaseSource,
     CityInfo,
+    DataType,
     DistrictInfo,
     RawRecord,
     SourceRegistry,
@@ -42,7 +43,17 @@ def _normalize_month(month: str) -> str:
 
 class CrepriceSource(BaseSource):
     source_name = "creprice"
-    BASE_URL = "https://creprice.cn"
+    base_url = "https://creprice.cn"
+    BASE_URL = "https://creprice.cn"  # 兼容既有引用的大写别名
+    capabilities = frozenset(
+        {
+            DataType.CITIES,
+            DataType.DISTRICTS,
+            DataType.PRICE_TIMELINE,
+            DataType.PRICE_DISTRIBUTION,
+        }
+    )
+    price_unit = "cny_per_sqm"
 
     def __init__(self, http_client: CrawlerHttpClient | None = None) -> None:
         self.http = http_client or CrawlerHttpClient()

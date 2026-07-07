@@ -1,1 +1,2 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/tasks/07-07-admin-data-collect/design.md", "reason": "geo 目录挂载与后台任务多 worker 兼容的协调点，compose 基准文件需为其预留 backend 数据卷"}
+{"file": "docs/09-工程规范与部署.md", "reason": "部署与开发命令的现状文档，本任务所有命令变更需同步更新到此文档"}

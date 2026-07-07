@@ -7,10 +7,11 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_cache, get_session
+from app.api.deps import get_cache, get_session, require_user
 from app.models.city import City
 from app.models.district import District
 from app.models.price_snapshot import PriceSnapshot
+from app.models.user import UserAccount
 from app.schemas.analytics import (
     CompareRegion,
     CompareResponse,
@@ -140,6 +141,7 @@ async def price_compare(
     price_type: str = Query("supply_price", pattern="^(supply_price|attention_price|value_price)$"),
     db: AsyncSession = Depends(get_session),
     cache: Redis = Depends(get_cache),
+    _user: UserAccount = Depends(require_user),
 ):
     try:
         ids = list(dict.fromkeys(int(x) for x in region_ids.split(",") if x.strip()))
@@ -183,6 +185,7 @@ async def map_heat(
     region_type: str = Query("district", pattern="^district$"),
     db: AsyncSession = Depends(get_session),
     cache: Redis = Depends(get_cache),
+    _user: UserAccount = Depends(require_user),
 ):
     cache_key = f"api:mapheat:{city_code}:{region_type}"
     cached = await cache.get(cache_key)

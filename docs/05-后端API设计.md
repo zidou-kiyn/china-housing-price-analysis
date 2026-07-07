@@ -20,7 +20,7 @@
 - **签发**：`POST /auth/login` 成功后返回 `access_token`
 - **传递**：`Authorization: Bearer <token>`
 - **过期**：access_token 30 分钟
-- **密码**：bcrypt 哈希存储（passlib）
+- **密码**：bcrypt 哈希存储（bcrypt 库直连；passlib 已停止维护且与 bcrypt≥4.1 不兼容，弃用）
 
 ### 角色权限矩阵
 

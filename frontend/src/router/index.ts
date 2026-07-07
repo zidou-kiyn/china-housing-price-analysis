@@ -1,5 +1,6 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import HomeView from '@/views/HomeView.vue'
+import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,13 +19,47 @@ const router = createRouter({
       path: '/compare',
       name: 'compare',
       component: () => import('@/views/CompareView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/map',
       name: 'map',
       component: () => import('@/views/MapView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('@/views/RegisterView.vue'),
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('@/views/admin/UserManageView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+
+  // 会话恢复：有 token 但用户信息未加载（如刷新页面）
+  if (auth.isLoggedIn && !auth.user) {
+    await auth.loadUser()
+  }
+
+  if (to.meta.requiresAuth && !auth.isLoggedIn) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'home' }
+  }
 })
 
 export default router

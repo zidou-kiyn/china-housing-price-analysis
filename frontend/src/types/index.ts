@@ -82,3 +82,27 @@ export interface MapHeatResponse {
   region_type: RegionType
   data: MapHeatItem[]
 }
+
+export interface User {
+  id: number
+  username: string
+  email: string
+  role: string
+  is_active: boolean
+}
+
+export interface UserAdmin extends User {
+  created_at: string
+}
+
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+}
+
+export interface UserListResponse {
+  total: number
+  page: number
+  page_size: number
+  items: UserAdmin[]
+}

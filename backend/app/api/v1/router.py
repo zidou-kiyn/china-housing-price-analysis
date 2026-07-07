@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.admin_collect import router as admin_collect_router
 from app.api.v1.admin_jobs import router as admin_jobs_router
+from app.api.v1.admin_settings import router as admin_settings_router
 from app.api.v1.admin_users import router as admin_users_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.geo import admin_router as admin_geo_router
@@ -20,6 +21,7 @@ api_router.include_router(predictions_router)
 api_router.include_router(admin_users_router)
 api_router.include_router(admin_collect_router)
 api_router.include_router(admin_jobs_router)
+api_router.include_router(admin_settings_router)
 api_router.include_router(admin_geo_router)
 api_router.include_router(geo_router)
 

@@ -41,6 +41,7 @@ class CrawlerHttpClient:
         backoff_base: float = 2.0,
         timeout: float = 15.0,
         session: requests.Session | None = None,
+        proxy: str | None | bool = None,
     ) -> None:
         self.delay_min = settings.crawl_request_delay_min if delay_min is None else delay_min
         self.delay_max = settings.crawl_request_delay_max if delay_max is None else delay_max
@@ -48,6 +49,14 @@ class CrawlerHttpClient:
         self.backoff_base = backoff_base
         self.timeout = timeout
         self.session = session or requests.Session()
+
+        # proxy=None（默认）自动读管理端「采集代理」设置；False 强制直连；字符串显式指定
+        if proxy is None:
+            from app.services.app_settings import get_proxy_url_sync
+
+            proxy = get_proxy_url_sync()
+        if proxy:
+            self.session.proxies = {"http": proxy, "https": proxy}
 
     def get(self, url: str, params: dict | None = None) -> requests.Response:
         """GET 请求：随机限速 + 随机 UA + 指数退避重试。失败到达上限则抛出最后一次异常。"""

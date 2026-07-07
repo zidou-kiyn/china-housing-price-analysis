@@ -188,6 +188,14 @@ class TestSubmitCollect:
         resp = await client.post("/api/v1/admin/collect", json={}, headers=admin_headers)
         assert resp.status_code == 422
 
+    async def test_unknown_source_422(self, client, admin_headers, fake_cities):
+        resp = await client.post(
+            "/api/v1/admin/collect",
+            json={"city_codes": ["zztest1"], "source": "no_such_source"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 422
+
     async def test_collect_forbidden_for_user(self, client, auth_headers):
         resp = await client.post(
             "/api/v1/admin/collect", json={"city_codes": ["qz"]}, headers=auth_headers

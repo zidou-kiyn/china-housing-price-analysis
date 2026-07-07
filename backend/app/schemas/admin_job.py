@@ -29,11 +29,15 @@ class AdminJobListResponse(BaseModel):
 
 
 class CollectRequest(BaseModel):
-    """采集目标：显式 code 列表，或 all=true 全部城市，或 all_missing=true 仅缺数据城市。"""
+    """采集目标：显式 code 列表，或 all=true 全部城市，或 all_missing=true 仅缺数据城市。
+
+    source 可选：覆盖本次采集使用的数据源；None 时用当前默认源（KV）。
+    """
 
     city_codes: list[str] = Field(default_factory=list)
     all: bool = False
     all_missing: bool = False
+    source: str | None = None
 
 
 class GeoFetchRequest(BaseModel):

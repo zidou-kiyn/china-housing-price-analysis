@@ -26,10 +26,16 @@ from app.schemas.admin_job import (
     RefreshCitiesResponse,
 )
 from app.services import geo, job_runner
+from app.services.app_settings import get_collect_source
 
 router = APIRouter(prefix="/admin/collect", tags=["admin"])
 
-SOURCE_NAME = "creprice"
+
+def _resolve_source(name: str) -> str:
+    """校验源名已注册，否则 422。返回原名，便于链式使用。"""
+    if name not in SourceRegistry.names():
+        raise ApiError(422, f"未知数据源: {name}", "VALIDATION_ERROR")
+    return name
 
 
 @router.post("/cities/refresh", response_model=RefreshCitiesResponse)
@@ -37,8 +43,9 @@ async def refresh_cities(
     db: AsyncSession = Depends(get_session),
     _admin: UserAccount = Depends(require_admin),
 ):
-    """从数据源刷新全国城市列表（一次 HTTP 请求，同步执行）。"""
-    source = SourceRegistry.get(SOURCE_NAME)
+    """从当前默认数据源刷新全国城市列表（一次 HTTP 请求，同步执行）。"""
+    source_name = _resolve_source(await get_collect_source(db))
+    source = SourceRegistry.get(source_name)
     cities = await asyncio.to_thread(source.fetch_cities)
     await upsert_cities(db, cities)
     await db.commit()
@@ -144,13 +151,13 @@ async def _resolve_collect_targets(db: AsyncSession, payload: CollectRequest) ->
     return payload.city_codes
 
 
-async def _run_collect(job_id: int, city_codes: list[str]) -> None:
+async def _run_collect(job_id: int, city_codes: list[str], source_name: str) -> None:
     """采集任务体：逐城市执行完整 pipeline，失败不中断，摘要写入 result。"""
     runner = PipelineRunner(async_session_factory)
     results: list[dict] = []
     for i, code in enumerate(city_codes, start=1):
         try:
-            stats = await runner.run(SOURCE_NAME, code)
+            stats = await runner.run(source_name, code)
             results.append(
                 {
                     "city": code,
@@ -178,10 +185,13 @@ async def submit_collect(
     if not city_codes:
         raise ApiError(422, "没有需要采集的城市", "VALIDATION_ERROR")
 
+    # 源解析优先级：请求显式 source > KV 当前默认源 > 常量兜底
+    source_name = _resolve_source(payload.source or await get_collect_source(db))
+
     job = await job_runner.submit(
         "collect",
-        {"city_codes": city_codes},
-        lambda job_id: _run_collect(job_id, city_codes),
+        {"city_codes": city_codes, "source": source_name},
+        lambda job_id: _run_collect(job_id, city_codes, source_name),
         progress_total=len(city_codes),
     )
     return job

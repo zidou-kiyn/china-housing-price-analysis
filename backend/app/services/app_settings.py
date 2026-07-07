@@ -14,6 +14,8 @@ from app.models.app_setting import AppSetting
 logger = logging.getLogger(__name__)
 
 PROXY_KEY = "crawler_proxy"
+COLLECT_SOURCE_KEY = "collect_source"
+DEFAULT_SOURCE = "creprice"
 
 
 async def get_setting(session: AsyncSession, key: str) -> dict | None:
@@ -28,6 +30,17 @@ async def set_setting(session: AsyncSession, key: str, value: dict) -> None:
     )
     await session.execute(stmt)
     await session.commit()
+
+
+async def get_collect_source(session: AsyncSession) -> str:
+    """读取当前默认采集源；未配置回退 DEFAULT_SOURCE。"""
+    value = await get_setting(session, COLLECT_SOURCE_KEY)
+    return (value or {}).get("source") or DEFAULT_SOURCE
+
+
+async def set_collect_source(session: AsyncSession, source: str) -> None:
+    """写入当前默认采集源（前端"数据源切换"落点）。"""
+    await set_setting(session, COLLECT_SOURCE_KEY, {"source": source})
 
 
 def get_proxy_url_sync() -> str | None:

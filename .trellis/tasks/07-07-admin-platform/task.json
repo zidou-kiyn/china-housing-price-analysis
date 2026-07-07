@@ -1,0 +1,32 @@
+{
+  "id": "admin-platform",
+  "name": "admin-platform",
+  "title": "管理端完善与全量数据平台",
+  "description": "父任务：compose 统一与端口收敛、用户管理完善、管理端数据/地图采集、模型管理、全量数据爬取",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "zidou-kiyn",
+  "assignee": "zidou-kiyn",
+  "createdAt": "2026-07-07",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-07-compose-unify",
+    "07-07-admin-user-mgmt",
+    "07-07-admin-data-collect",
+    "07-07-admin-model-mgmt",
+    "07-07-full-data-crawl"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

@@ -33,3 +33,52 @@ export interface DistrictOverviewItem {
   attention_price: number | null
   value_price: number | null
 }
+
+export type RegionType = 'city' | 'district'
+export type PriceType = 'supply_price' | 'attention_price' | 'value_price'
+
+export interface RankItem {
+  region_id: number
+  region_name: string
+  year_month: string | null
+  supply_price: number | null
+  attention_price: number | null
+  value_price: number | null
+  yoy_pct: number | null
+  mom_pct: number | null
+}
+
+export interface RankResponse {
+  total: number
+  page: number
+  page_size: number
+  items: RankItem[]
+}
+
+export interface ComparePoint {
+  year_month: string
+  price: number | null
+}
+
+export interface CompareRegion {
+  region_id: number
+  region_name: string
+  data: ComparePoint[]
+}
+
+export interface CompareResponse {
+  price_type: PriceType
+  regions: CompareRegion[]
+}
+
+export interface MapHeatItem {
+  region_id: number
+  region_name: string
+  price: number | null
+}
+
+export interface MapHeatResponse {
+  city_code: string
+  region_type: RegionType
+  data: MapHeatItem[]
+}

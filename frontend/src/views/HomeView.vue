@@ -36,7 +36,7 @@ function onDistrictClick(district: DistrictOverviewItem) {
   <div class="home">
     <el-container>
       <el-header class="header">
-        <h1>城市房价分析系统</h1>
+        <span class="header-label">选择城市</span>
         <CitySelect :cities="cities" :model-value="selectedCity" @update:model-value="onCityChange" />
       </el-header>
 
@@ -88,15 +88,14 @@ function onDistrictClick(district: DistrictOverviewItem) {
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   height: auto;
   padding: 16px 0;
 }
 
-h1 {
-  margin: 0;
-  color: #303133;
-  font-size: 22px;
+.header-label {
+  color: #606266;
+  font-size: 14px;
 }
 
 .chart-card {

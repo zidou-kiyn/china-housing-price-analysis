@@ -6,8 +6,8 @@
 - [x] 2. `pipeline/loaders.py` — async upsert 函数：`upsert_cities`、`upsert_districts`、`upsert_price_snapshots`、`upsert_price_distributions`、`create_crawl_job`、`finish_crawl_job`、`create_crawl_log`
 - [x] 3. `pipeline/runner.py` — `PipelineRunner` 编排器，串联 fetch → clean → load → log 流程
 - [x] 4. `tests/pipeline/test_cleaners.py` — 清洗逻辑单元测试（10 tests passed）
-- [ ] 5. `tests/pipeline/test_loaders.py` — upsert 逻辑测试（需要 PostgreSQL）
-- [x] 6. `tests/pipeline/test_runner_live.py` — 集成冒烟测试已编写（@pytest.mark.slow，需 PostgreSQL + 网络验证）
+- [x] 5. `tests/pipeline/test_loaders.py` — 17 个 upsert 逻辑集成测试全部通过（PostgreSQL）
+- [x] 6. `tests/pipeline/test_runner_live.py` — 11 个端到端冒烟测试全部通过（PostgreSQL + creprice.cn 网络）
 
 ## 关键实现细节
 

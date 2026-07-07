@@ -7,6 +7,7 @@
 """
 
 import pytest
+import pytest_asyncio
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -32,7 +33,7 @@ def session_factory(engine):
     return async_sessionmaker(engine, expire_on_commit=False)
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def pipeline_stats(session_factory):
     """执行一次泉州全量管线，返回统计。module 级别只跑一次。"""
     runner = PipelineRunner(session_factory)

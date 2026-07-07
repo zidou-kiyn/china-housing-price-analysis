@@ -40,14 +40,14 @@
 
 ## Acceptance Criteria
 
-- [ ] `PipelineRunner.run("creprice", "qz")` 完整执行无报错
-- [ ] city 表有泉州记录，district 表有对应区县
-- [ ] price_snapshot 表有泉州城市级 ≥12 个月的记录
-- [ ] price_snapshot 表有各区县的记录
-- [ ] price_distribution 表有泉州当月分布数据
-- [ ] crawl_job 记录状态为 completed，crawl_log 记录了所有请求的 URL、耗时
-- [ ] 重复执行管线不产生重复数据（upsert 幂等）
-- [ ] 单元测试覆盖清洗逻辑和 upsert 逻辑
+- [x] `PipelineRunner.run("creprice", "qz")` 完整执行无报错
+- [x] city 表有泉州记录（id=403, name=泉州），district 表有 3 个对应区县
+- [x] price_snapshot 表有泉州城市级 13 个月的记录（≥12）
+- [x] price_snapshot 表有各区县的记录（39 条）
+- [x] price_distribution 表有泉州当月分布数据（21 条）
+- [x] crawl_job 记录状态为 completed，crawl_log 记录了 6 条请求的 URL、耗时
+- [x] 重复执行管线不产生重复数据（upsert 幂等，test_idempotent_rerun 通过）
+- [x] 单元测试覆盖清洗逻辑（10 tests）和 upsert 逻辑（17 tests）+ 端到端冒烟测试（11 tests）
 
 ## Dependencies
 

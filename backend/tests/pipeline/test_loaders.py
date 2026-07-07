@@ -2,12 +2,14 @@
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.collector.base import CityInfo, DistrictInfo
 from app.core.config import settings
 from app.models.city import City
+from app.models.crawl_job import CrawlJob
+from app.models.crawl_log import CrawlLog
 from app.models.district import District
 from app.models.price_distribution import PriceDistribution
 from app.models.price_snapshot import PriceSnapshot
@@ -23,6 +25,48 @@ from app.pipeline.loaders import (
 
 pytestmark = [pytest.mark.slow, pytest.mark.asyncio(loop_scope="module")]
 
+# 本模块写入真实 DB 的全部测试城市代码；新增用例的城市代码必须登记在这里，
+# 否则会泄漏进 dev 库并出现在前端排行榜（曾发生：快照市/幂等市上榜）
+TEST_CITY_CODES = [
+    "test_a", "test_b", "test_upsert_city", "dist_test_city", "upd_dist_city",
+    "snap_city", "upd_snap_city", "idem_city", "dist_price_city", "upd_dist_price_city",
+]
+TEST_JOB_SOURCE = "test_source"
+
+
+async def _purge_test_rows(session_factory) -> None:
+    async with session_factory() as s:
+        async with s.begin():
+            city_ids = (
+                (await s.execute(select(City.id).where(City.code.in_(TEST_CITY_CODES))))
+                .scalars().all()
+            )
+            if city_ids:
+                dist_ids = (
+                    (await s.execute(select(District.id).where(District.city_id.in_(city_ids))))
+                    .scalars().all()
+                )
+                for region_type, ids in (("city", city_ids), ("district", dist_ids)):
+                    if not ids:
+                        continue
+                    await s.execute(delete(PriceSnapshot).where(
+                        PriceSnapshot.region_type == region_type,
+                        PriceSnapshot.region_id.in_(ids),
+                    ))
+                    await s.execute(delete(PriceDistribution).where(
+                        PriceDistribution.region_type == region_type,
+                        PriceDistribution.region_id.in_(ids),
+                    ))
+                await s.execute(delete(District).where(District.city_id.in_(city_ids)))
+                await s.execute(delete(City).where(City.id.in_(city_ids)))
+            job_ids = (
+                (await s.execute(select(CrawlJob.id).where(CrawlJob.source == TEST_JOB_SOURCE)))
+                .scalars().all()
+            )
+            if job_ids:
+                await s.execute(delete(CrawlLog).where(CrawlLog.job_id.in_(job_ids)))
+                await s.execute(delete(CrawlJob).where(CrawlJob.id.in_(job_ids)))
+
 
 @pytest.fixture(scope="module")
 def engine():
@@ -32,6 +76,23 @@ def engine():
 @pytest.fixture(scope="module")
 def session_factory(engine):
     return async_sessionmaker(engine, expire_on_commit=False)
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="module", autouse=True)
+async def cleanup_test_rows(session_factory):
+    """测试前后各清一次：前置清历史泄漏，后置清本轮写入，并失效 API 缓存。"""
+    await _purge_test_rows(session_factory)
+    yield
+    await _purge_test_rows(session_factory)
+    from redis.asyncio import Redis
+
+    from app.core.cache import invalidate_api_caches
+
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        await invalidate_api_caches(redis, "cleanup")
+    finally:
+        await redis.aclose()
 
 
 @pytest_asyncio.fixture(loop_scope="module")

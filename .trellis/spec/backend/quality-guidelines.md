@@ -56,3 +56,7 @@ Validation commands: `.venv/bin/python -m ruff check app tests scripts`,
 - Tests that seed data by calling pipeline loaders directly (bypassing
   `PipelineRunner`) must still delete the relevant `api:*` Redis keys themselves —
   loaders never touch Redis; invalidation happens at the runner level.
+- **Live-DB tests must purge their own rows** — register every fixture city code in
+  the module's `TEST_CITY_CODES` list and purge before AND after the module (see
+  `tests/pipeline/test_loaders.py::cleanup_test_rows`). Leaked fixture rows surface
+  in user-facing pages (happened: 快照市/幂等市 showed up on the rank page).

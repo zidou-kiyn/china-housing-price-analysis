@@ -1,0 +1,29 @@
+# dev 差异叠加层：docker compose up 时自动与 docker-compose.yml 合并，生产部署不要带上本文件。
+services:
+  backend:
+    command: >
+      sh -c "uv run alembic upgrade head &&
+             uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    env_file: !override
+      - .env
+    volumes:
+      - ./backend:/app
+      # 匿名卷保护容器内 .venv 不被宿主机源码挂载遮蔽；首次启动 uv run 自动同步依赖（含 dev 组）
+      - /app/.venv
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      VITE_PROXY_TARGET: http://backend:8000
+    ports: !override
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    healthcheck:
+      disable: true
+    restart: "no"

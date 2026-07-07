@@ -1,12 +1,14 @@
+# 生产安全基准（同时是唯一的 compose 基准文件）。
+# - 生产：docker compose -f docker-compose.yml --env-file .env.prod up -d --build
+# - 开发：docker compose up -d（自动叠加 docker-compose.override.yml 的 dev 差异）
+# 注意：dev 与 prod 共用 ./data/ 与默认项目名，两套栈不能同时运行。
 services:
   postgres:
     image: postgres:16
     environment:
       POSTGRES_DB: housing_price
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -14,11 +16,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7
-    ports:
-      - "6379:6379"
     volumes:
       - ./data/redis:/data
     healthcheck:
@@ -26,28 +27,42 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   backend:
     build: ./backend
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    ports:
-      - "8000:8000"
-    env_file: .env
+    command: >
+      sh -c "uv run --no-sync alembic upgrade head &&
+             uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+    env_file: .env.prod
     volumes:
-      - ./backend:/app
+      # 采集 raw JSON 与 GeoJSON 的持久化目录（容器内代码将仓库根 data/ 解析为 /data）
+      - ./data:/data
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
-    command: npm run dev -- --host 0.0.0.0
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "8080:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

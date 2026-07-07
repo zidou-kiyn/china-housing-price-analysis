@@ -26,3 +26,10 @@
 - 关键决策：公开 /cities 改为仅返回有区县数据的城市，避免 368 个空城市污染用户端选择器（采集完成自动失效 api:cities 缓存，新城市即时出现）。
 - 坑：ORM identity map——任务体内 backfill 后重读同 session 需经 ORM 更新对象而非 Core update（测试打桩踩到）；data/ 目录容器 root 属主，宿主机写入要走 docker compose cp / exec。
 - 验证：后端 201→235 tests；E2E 9 用例；dev 与 prod 双形态真实闭环（prod workers=2 下任务正常）。
+
+## 2026-07-08 · 07-07-admin-model-mgmt 完成
+
+- 后端：POST /admin/predict/train 改真后台任务（asyncio.to_thread 包 train_model），TrainRequest 迁 city_codes 列表，训练互斥 409，新版本不自动激活；测试改任务轮询式 + 互斥/失败用例（12 passed）。
+- 前端：ModelManageView（版本表/训练表单/进行中轮询/切换活跃二次确认），抽 usePolling composable 并回改 DataManageView；E2E 12 用例全过。
+- 实测：全量数据训练 v1.1/v1.2 产出，切 v1.1 后 /predict 即时用新模型（莆田新城市可预测），切回 v1.0。
+- 注意：tests/pipeline/test_runner_live.py（真实访问 creprice）当日多次真实采集后被源站 SSL 层限流而失败（外部因素，其余 199 项全过）——full-data-crawl 执行时须严格限速、避免高频重试。

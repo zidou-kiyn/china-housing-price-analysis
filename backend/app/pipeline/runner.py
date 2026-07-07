@@ -9,7 +9,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.collector.base import BaseSource, RawRecord, SourceRegistry
+from app.collector.base import BaseSource, DataType, RawRecord, SourceRegistry
 from app.collector.storage import save_raw
 from app.core.cache import invalidate_api_caches, redis_client
 from app.pipeline.cleaners import clean_price_distribution, clean_price_timeline
@@ -40,13 +40,17 @@ class PipelineRunner:
         source = SourceRegistry.get(source_name)
         stats = {"snapshots": 0, "distributions": 0, "logs": 0, "errors": []}
 
+        # 按源能力自适应：不支持区县 / 分布的源跳过对应阶段，只跑城市级时序（最小能力）。
+        supports_dist = source.supports(DataType.DISTRICTS)
+        supports_distribution = source.supports(DataType.PRICE_DISTRIBUTION)
+
         async with self.session_factory() as session:
             async with session.begin():
                 job = await create_crawl_job(session, source_name, city_code)
 
                 try:
                     city_map, dist_map, dist_list = await self._load_dimensions(
-                        session, source, city_code, job.id
+                        session, source, city_code, job.id, with_districts=supports_dist
                     )
                     stats["logs"] += 1
 
@@ -60,31 +64,34 @@ class PipelineRunner:
                     stats["snapshots"] += n
                     stats["logs"] += 1
 
-                    for dist in dist_list:
-                        dist_id = dist_map.get(dist.code)
-                        if dist_id is None:
-                            continue
-                        n = await self._load_district_timeline(
-                            session, source, city_code, dist.code, dist_id, job.id
-                        )
-                        stats["snapshots"] += n
-                        stats["logs"] += 1
+                    if supports_dist:
+                        for dist in dist_list:
+                            dist_id = dist_map.get(dist.code)
+                            if dist_id is None:
+                                continue
+                            n = await self._load_district_timeline(
+                                session, source, city_code, dist.code, dist_id, job.id
+                            )
+                            stats["snapshots"] += n
+                            stats["logs"] += 1
 
-                    n = await self._load_city_distribution(
-                        session, source, city_code, city_id, job.id
-                    )
-                    stats["distributions"] += n
-                    stats["logs"] += 1
-
-                    for dist in dist_list:
-                        dist_id = dist_map.get(dist.code)
-                        if dist_id is None:
-                            continue
-                        n = await self._load_district_distribution(
-                            session, source, city_code, dist.code, dist_id, job.id
+                    if supports_distribution:
+                        n = await self._load_city_distribution(
+                            session, source, city_code, city_id, job.id
                         )
                         stats["distributions"] += n
                         stats["logs"] += 1
+
+                        if supports_dist:
+                            for dist in dist_list:
+                                dist_id = dist_map.get(dist.code)
+                                if dist_id is None:
+                                    continue
+                                n = await self._load_district_distribution(
+                                    session, source, city_code, dist.code, dist_id, job.id
+                                )
+                                stats["distributions"] += n
+                                stats["logs"] += 1
 
                     await finish_crawl_job(session, job, success=True)
 
@@ -102,13 +109,25 @@ class PipelineRunner:
         return stats
 
     async def _load_dimensions(
-        self, session: AsyncSession, source: BaseSource, city_code: str, job_id: int
+        self,
+        session: AsyncSession,
+        source: BaseSource,
+        city_code: str,
+        job_id: int,
+        with_districts: bool = True,
     ):
-        """获取城市/区县列表并 upsert，返回 (city_map, dist_map, dist_list)。"""
+        """获取城市（可选区县）列表并 upsert，返回 (city_map, dist_map, dist_list)。
+
+        with_districts=False（源不支持区县）时跳过 fetch_districts，返回空区县。
+        """
         t0 = time.perf_counter()
+        base = getattr(source, "base_url", "") or source.source_name
         try:
             cities = await asyncio.to_thread(source.fetch_cities)
-            city_districts = await asyncio.to_thread(source.fetch_districts, city_code)
+            if with_districts:
+                city_districts = await asyncio.to_thread(source.fetch_districts, city_code)
+            else:
+                city_districts = []
 
             city_map = await upsert_cities(session, cities)
             dist_map = await upsert_districts(session, city_districts, city_map)
@@ -117,7 +136,7 @@ class PipelineRunner:
             await create_crawl_log(
                 session,
                 job_id=job_id,
-                url=f"{source.BASE_URL}/city/{city_code}.html",
+                url=f"{base}/city/{city_code}.html",
                 success=True,
                 status_code=200,
                 record_count=len(cities) + len(city_districts),
@@ -129,7 +148,7 @@ class PipelineRunner:
             await create_crawl_log(
                 session,
                 job_id=job_id,
-                url=f"{source.BASE_URL}/rank/citySel.html",
+                url=f"{base}/rank/citySel.html",
                 success=False,
                 error_message=str(exc),
                 elapsed_ms=elapsed,

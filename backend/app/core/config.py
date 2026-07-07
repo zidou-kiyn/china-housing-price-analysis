@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     crawl_max_retries: int = 3
 
     ml_model_dir: str = "models"
+    geo_dir: str | None = None  # GeoJSON 目录，默认仓库根 data/geo（见 services.geo）
 
     app_env: str = "development"
     debug: bool = False

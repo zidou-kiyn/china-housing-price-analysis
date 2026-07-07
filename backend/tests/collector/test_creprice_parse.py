@@ -108,6 +108,12 @@ def test_parse_cities_dedup():
     assert by_code["hf"] == "合肥"
     assert by_code["qz"] == "泉州"
 
+    # 城市锚点归属其前方最近的省份锚点
+    provinces = {c.code: c.province for c in cities}
+    assert provinces["aq"] == "安徽"
+    assert provinces["hf"] == "安徽"
+    assert provinces["qz"] == "福建"
+
 
 def test_parse_city_districts_filters_by_city():
     html = _load_text("citySel_snippet.html")

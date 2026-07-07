@@ -12,6 +12,7 @@ class CityInfo:
 
     name: str
     code: str
+    province: str | None = None
 
 
 @dataclass

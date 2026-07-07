@@ -19,6 +19,10 @@ from app.collector.base import (
 from app.collector.http_client import CrawlerHttpClient
 
 _CITY_RE = re.compile(r'<a class="city[^"]*"[^>]*href="/city/([^"]+)\.html">([^<]+)</a>')
+# 省份与城市锚点按文档顺序交替出现：sheng 锚点之后的 city 锚点归属该省
+_CITY_TOKEN_RE = re.compile(
+    r'<a class="(sheng|city[^"]*)"[^>]*?(?:href="/city/([^"]+)\.html")?>([^<]+)</a>'
+)
 # 城市详情页中的区县链接：/district/CODE.html?city=CITY，文本可能包在 <span> 中
 _CITY_DIST_RE = re.compile(
     r'href="/district/([A-Za-z0-9]+)\.html\?city=([a-z]+)"[^>]*>\s*(?:<span>)?([^<]+?)(?:</span>)?\s*</a>'
@@ -65,11 +69,14 @@ class CrepriceSource(BaseSource):
 
     @staticmethod
     def _parse_cities(html: str) -> list[CityInfo]:
-        """提取城市并按 code 去重（每个城市在两个视图块中各出现一次）。"""
+        """提取城市并按 code 去重（每个城市在两个视图块中各出现一次），带所属省份。"""
         seen: dict[str, CityInfo] = {}
-        for code, name in _CITY_RE.findall(html):
-            if code not in seen:
-                seen[code] = CityInfo(name=name.strip(), code=code)
+        province: str | None = None
+        for cls, code, name in _CITY_TOKEN_RE.findall(html):
+            if cls == "sheng":
+                province = name.strip()
+            elif code and code not in seen:
+                seen[code] = CityInfo(name=name.strip(), code=code, province=province)
         return list(seen.values())
 
     @staticmethod

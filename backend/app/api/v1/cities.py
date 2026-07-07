@@ -24,7 +24,10 @@ async def list_cities(
     if cached:
         return json.loads(cached)
 
-    result = await db.execute(select(City).order_by(City.name))
+    # 仅返回已采集过的城市（有区县数据）；全国城市目录见管理端 /admin/collect/cities
+    result = await db.execute(
+        select(City).where(City.districts.any()).order_by(City.name)
+    )
     cities = [CityOut.model_validate(c) for c in result.scalars()]
     await cache.set("api:cities", json.dumps([c.model_dump() for c in cities]), ex=CACHE_TTL_CITIES)
     return cities

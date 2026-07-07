@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,10 +23,16 @@ async def upsert_cities(
 ) -> dict[str, int]:
     """upsert 城市列表，返回 code → id 映射。"""
     for city in cities:
-        stmt = insert(City).values(name=city.name, code=city.code)
+        stmt = insert(City).values(
+            name=city.name, code=city.code, province=city.province
+        )
         stmt = stmt.on_conflict_do_update(
             index_elements=["code"],
-            set_={"name": stmt.excluded.name},
+            # province 仅在来源有值时覆盖，避免旧数据被 None 清空
+            set_={
+                "name": stmt.excluded.name,
+                "province": func.coalesce(stmt.excluded.province, City.province),
+            },
         )
         await session.execute(stmt)
     await session.flush()

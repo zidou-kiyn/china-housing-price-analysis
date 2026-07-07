@@ -32,7 +32,7 @@
 
 ## Acceptance Criteria
 
-- [ ] 人为抛错的端点返回 500 JSON（含 code），日志有堆栈；访问日志含耗时
-- [ ] pytest -m "not slow" --cov=app 总覆盖率 ≥ 70%，全绿
-- [ ] npm run test:e2e 全绿（本地 dev 环境）
-- [ ] loadtest.py 跑出基线数据并记录
+- [x] 人为抛错的端点返回 500 JSON（含 code），日志有堆栈；访问日志含耗时
+- [x] pytest -m "not slow" --cov=app 总覆盖率 ≥ 70%，全绿
+- [x] npm run test:e2e 全绿（本地 dev 环境）
+- [x] loadtest.py 跑出基线数据并记录

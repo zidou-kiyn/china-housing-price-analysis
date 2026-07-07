@@ -23,10 +23,13 @@ from app.schemas.admin_job import (
     CityCoverageListResponse,
     CityCoverageOut,
     CollectRequest,
+    CollectSourceOut,
+    CollectSourcesResponse,
+    CollectSourceUpdate,
     RefreshCitiesResponse,
 )
 from app.services import geo, job_runner
-from app.services.app_settings import get_collect_source
+from app.services.app_settings import get_collect_source, set_collect_source
 
 router = APIRouter(prefix="/admin/collect", tags=["admin"])
 
@@ -36,6 +39,43 @@ def _resolve_source(name: str) -> str:
     if name not in SourceRegistry.names():
         raise ApiError(422, f"未知数据源: {name}", "VALIDATION_ERROR")
     return name
+
+
+async def _build_sources_response(db: AsyncSession) -> CollectSourcesResponse:
+    """列出已注册源的能力 + 当前默认源（读类属性，不实例化源）。"""
+    current = await get_collect_source(db)
+    items = []
+    for name in SourceRegistry.names():
+        cls = SourceRegistry.get_class(name)
+        items.append(
+            CollectSourceOut(
+                name=name,
+                capabilities=sorted(cls.capabilities),
+                price_unit=cls.price_unit,
+            )
+        )
+    return CollectSourcesResponse(current=current, items=items)
+
+
+@router.get("/sources", response_model=CollectSourcesResponse)
+async def list_sources(
+    db: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
+):
+    """列出可用采集源（含能力、均价语义）与当前默认源。"""
+    return await _build_sources_response(db)
+
+
+@router.put("/source", response_model=CollectSourcesResponse)
+async def set_source(
+    payload: CollectSourceUpdate,
+    db: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
+):
+    """设置当前默认采集源（前端"数据源切换"落点）；未注册源 422。"""
+    _resolve_source(payload.source)
+    await set_collect_source(db, payload.source)
+    return await _build_sources_response(db)
 
 
 @router.post("/cities/refresh", response_model=RefreshCitiesResponse)

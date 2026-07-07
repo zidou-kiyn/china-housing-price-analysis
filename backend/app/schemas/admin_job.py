@@ -51,6 +51,27 @@ class RefreshCitiesResponse(BaseModel):
     total: int
 
 
+class CollectSourceOut(BaseModel):
+    """单个已注册数据源的能力描述。"""
+
+    name: str
+    capabilities: list[str]
+    price_unit: str
+
+
+class CollectSourcesResponse(BaseModel):
+    """可用数据源列表 + 当前默认源。"""
+
+    current: str
+    items: list[CollectSourceOut]
+
+
+class CollectSourceUpdate(BaseModel):
+    """切换当前默认采集源。"""
+
+    source: str
+
+
 class CityCoverageOut(BaseModel):
     id: int
     name: str

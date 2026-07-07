@@ -203,6 +203,40 @@ class TestSubmitCollect:
         assert resp.status_code == 403
 
 
+class TestCollectSources:
+    async def test_list_sources_contains_creprice(self, client, admin_headers):
+        resp = await client.get("/api/v1/admin/collect/sources", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "current" in data
+        creprice = next(s for s in data["items"] if s["name"] == "creprice")
+        assert set(creprice["capabilities"]) == {
+            "cities", "districts", "price_timeline", "price_distribution"
+        }
+        assert creprice["price_unit"] == "cny_per_sqm"
+
+    async def test_set_source_switches_current(self, client, admin_headers):
+        resp = await client.put(
+            "/api/v1/admin/collect/source",
+            json={"source": "creprice"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["current"] == "creprice"
+
+    async def test_set_unknown_source_422(self, client, admin_headers):
+        resp = await client.put(
+            "/api/v1/admin/collect/source",
+            json={"source": "no_such_source"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 422
+
+    async def test_sources_forbidden_for_user(self, client, auth_headers):
+        resp = await client.get("/api/v1/admin/collect/sources", headers=auth_headers)
+        assert resp.status_code == 403
+
+
 class TestJobsQuery:
     async def test_list_jobs_with_kind_filter(self, client, admin_headers):
         resp = await client.get("/api/v1/admin/jobs?kind=collect", headers=admin_headers)

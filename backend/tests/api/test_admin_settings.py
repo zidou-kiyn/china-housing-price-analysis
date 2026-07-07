@@ -17,10 +17,20 @@ PROXY_URL = "http://user:secretpass@10.0.0.1:2260"
 
 
 @pytest_asyncio.fixture(autouse=True, loop_scope="session")
-async def _clean_setting():
+async def _isolate_setting():
+    """暂存并恢复 dev 环境的真实代理配置：测试从空状态开始，结束后原样放回。"""
+    async with async_session_factory() as s:
+        row = await s.get(AppSetting, "crawler_proxy")
+        original = row.value if row else None
+        await s.execute(delete(AppSetting).where(AppSetting.key == "crawler_proxy"))
+        await s.commit()
+
     yield
+
     async with async_session_factory() as s:
         await s.execute(delete(AppSetting).where(AppSetting.key == "crawler_proxy"))
+        if original is not None:
+            s.add(AppSetting(key="crawler_proxy", value=original))
         await s.commit()
 
 

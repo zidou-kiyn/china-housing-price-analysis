@@ -171,3 +171,16 @@ export interface ModelVersion {
   training_samples: number
   is_active: boolean
 }
+
+export interface ProxySetting {
+  enabled: boolean
+  url_masked: string | null
+  has_url: boolean
+}
+
+export interface ProxyTestResult {
+  ok: boolean
+  status_code: number | null
+  elapsed_ms: number | null
+  error: string | null
+}

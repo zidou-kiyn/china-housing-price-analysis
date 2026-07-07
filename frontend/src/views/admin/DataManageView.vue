@@ -2,12 +2,15 @@
 import {
   fetchCityCoverage,
   fetchJobs,
+  fetchProxySetting,
   refreshCities,
+  saveProxySetting,
   submitCollect,
   submitGeoFetch,
+  testProxy,
 } from '@/api/admin'
 import { usePolling } from '@/composables/usePolling'
-import type { AdminJob, CityCoverage } from '@/types'
+import type { AdminJob, CityCoverage, ProxyTestResult } from '@/types'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -115,6 +118,69 @@ function onGeoAllMissing() {
   submitJob(() => submitGeoFetch({ all_missing: true }), '补齐缺图')
 }
 
+// ---- 采集代理设置 ----
+const proxyEnabled = ref(false)
+const proxyUrl = ref('') // 仅承载新输入；空 = 未改动
+const proxyMasked = ref<string | null>(null)
+const proxyHasUrl = ref(false)
+const proxySaving = ref(false)
+const proxyTesting = ref(false)
+const proxyTestResult = ref<ProxyTestResult | null>(null)
+
+async function loadProxy() {
+  const s = await fetchProxySetting()
+  proxyEnabled.value = s.enabled
+  proxyMasked.value = s.url_masked
+  proxyHasUrl.value = s.has_url
+}
+
+async function onSaveProxy() {
+  proxySaving.value = true
+  try {
+    const s = await saveProxySetting({
+      enabled: proxyEnabled.value,
+      // 输入框为空 = 不改动已存 URL（后端 url 缺省语义）
+      ...(proxyUrl.value.trim() ? { url: proxyUrl.value.trim() } : {}),
+    })
+    proxyEnabled.value = s.enabled
+    proxyMasked.value = s.url_masked
+    proxyHasUrl.value = s.has_url
+    proxyUrl.value = ''
+    ElMessage.success('代理设置已保存')
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail ?? '保存失败')
+  } finally {
+    proxySaving.value = false
+  }
+}
+
+async function onClearProxy() {
+  proxySaving.value = true
+  try {
+    const s = await saveProxySetting({ enabled: false, url: '' })
+    proxyEnabled.value = s.enabled
+    proxyMasked.value = s.url_masked
+    proxyHasUrl.value = s.has_url
+    proxyUrl.value = ''
+    proxyTestResult.value = null
+    ElMessage.success('代理配置已清除')
+  } finally {
+    proxySaving.value = false
+  }
+}
+
+async function onTestProxy() {
+  proxyTesting.value = true
+  proxyTestResult.value = null
+  try {
+    proxyTestResult.value = await testProxy(proxyUrl.value.trim() || undefined)
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail ?? '测试请求失败')
+  } finally {
+    proxyTesting.value = false
+  }
+}
+
 // ---- 展示辅助 ----
 const KIND_LABELS: Record<string, string> = {
   collect: '数据采集',
@@ -164,7 +230,7 @@ function formatTime(iso: string | null): string {
 }
 
 onMounted(async () => {
-  await Promise.all([loadCities(), loadJobs()])
+  await Promise.all([loadCities(), loadJobs(), loadProxy()])
 })
 watch([page, pageSize], loadCities)
 watch(historyPage, loadJobs)
@@ -173,6 +239,34 @@ watch(historyPage, loadJobs)
 <template>
   <div class="admin-page">
     <h2>数据管理</h2>
+
+    <el-card class="proxy-card">
+      <div class="proxy-row">
+        <span class="proxy-label">采集代理</span>
+        <el-switch v-model="proxyEnabled" active-text="启用" />
+        <el-input
+          v-model="proxyUrl"
+          class="proxy-input"
+          show-password
+          clearable
+          :placeholder="proxyMasked ?? 'http://user:pass@host:port（国内 IP 代理）'"
+        />
+        <el-button :loading="proxyTesting" @click="onTestProxy">测试连通</el-button>
+        <el-button type="primary" :loading="proxySaving" @click="onSaveProxy">保存</el-button>
+        <el-button v-if="proxyHasUrl" :loading="proxySaving" @click="onClearProxy">清除</el-button>
+      </div>
+      <div v-if="proxyTestResult" class="proxy-test-result">
+        <el-tag :type="proxyTestResult.ok ? 'success' : 'danger'" size="small">
+          {{ proxyTestResult.ok ? '可用' : '不可用' }}
+        </el-tag>
+        <span v-if="proxyTestResult.status_code">HTTP {{ proxyTestResult.status_code }}</span>
+        <span v-if="proxyTestResult.elapsed_ms != null">{{ proxyTestResult.elapsed_ms }}ms</span>
+        <span v-if="proxyTestResult.error" class="proxy-error">{{ proxyTestResult.error }}</span>
+      </div>
+      <div class="proxy-hint">
+        代理仅作用于数据采集（creprice）；采集源屏蔽境外 IP，请使用国内出口代理。地图（DataV）始终直连。
+      </div>
+    </el-card>
 
     <div class="filter-bar">
       <el-input
@@ -326,6 +420,45 @@ h2 {
 h3 {
   margin: 24px 0 12px;
   color: #303133;
+}
+
+.proxy-card {
+  margin-bottom: 16px;
+}
+
+.proxy-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.proxy-label {
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+}
+
+.proxy-input {
+  flex: 1;
+}
+
+.proxy-test-result {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  color: #606266;
+}
+
+.proxy-error {
+  color: #f56c6c;
+}
+
+.proxy-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 
 .filter-bar {

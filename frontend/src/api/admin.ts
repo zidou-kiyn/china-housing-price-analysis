@@ -2,6 +2,8 @@ import type {
   AdminJob,
   AdminJobListResponse,
   CityCoverageListResponse,
+  ProxySetting,
+  ProxyTestResult,
   UserAdmin,
   UserListResponse,
 } from '@/types'
@@ -92,4 +94,21 @@ export function fetchJobs(
 
 export function fetchJob(jobId: number): Promise<AdminJob> {
   return api.get(`/admin/jobs/${jobId}`)
+}
+
+// ---- 采集代理设置 ----
+
+export function fetchProxySetting(): Promise<ProxySetting> {
+  return api.get('/admin/settings/proxy')
+}
+
+export function saveProxySetting(payload: {
+  enabled: boolean
+  url?: string
+}): Promise<ProxySetting> {
+  return api.put('/admin/settings/proxy', payload)
+}
+
+export function testProxy(url?: string): Promise<ProxyTestResult> {
+  return api.post('/admin/settings/proxy/test', { url: url || undefined })
 }

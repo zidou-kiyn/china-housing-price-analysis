@@ -2,14 +2,12 @@
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.collector.base import CityInfo, DistrictInfo
 from app.core.config import settings
 from app.models.city import City
-from app.models.crawl_job import CrawlJob
-from app.models.crawl_log import CrawlLog
 from app.models.district import District
 from app.models.price_distribution import PriceDistribution
 from app.models.price_snapshot import PriceSnapshot

@@ -109,16 +109,18 @@ def test_parse_cities_dedup():
     assert by_code["qz"] == "泉州"
 
 
-def test_parse_districts_composite_key():
-    districts = CrepriceSource._parse_districts(_load_text("citySel_snippet.html"))
+def test_parse_city_districts_filters_by_city():
+    html = _load_text("citySel_snippet.html")
 
-    assert len(districts) == 3
-    pairs = {(d.city_code, d.code) for d in districts}
-    assert pairs == {("aq", "QS"), ("aq", "TC"), ("hf", "CH")}
-    by_code = {d.code: d.name for d in districts}
+    aq_districts = CrepriceSource._parse_city_districts(html, "aq")
+    assert {(d.city_code, d.code) for d in aq_districts} == {("aq", "QS"), ("aq", "TC")}
+    by_code = {d.code: d.name for d in aq_districts}
     assert by_code["QS"] == "潜山市"
     assert by_code["TC"] == "桐城市"
-    assert by_code["CH"] == "巢湖市"
+
+    hf_districts = CrepriceSource._parse_city_districts(html, "hf")
+    assert {(d.city_code, d.code) for d in hf_districts} == {("hf", "CH")}
+    assert hf_districts[0].name == "巢湖市"
 
 
 # -- 原始数据落地 ----------------------------------------------------------------

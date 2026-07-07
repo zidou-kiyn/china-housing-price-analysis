@@ -9,19 +9,19 @@
 | 子任务 | 目录 | 交付物 |
 |--------|------|--------|
 | M3-1 XGBoost 调优 | 07-07-ml-xgboost | XGBoost 训练、时序交叉验证、RF/XGB 模型对比、模型版本切换 API |
-| M3-2 可视化大屏 | （待创建） | DashboardView 多图联动（走势+排行+分布+地图） |
-| M3-3 测试 + 加固 | （待创建） | Playwright E2E、错误处理、日志、压测 |
-| M3-4 部署 + 文档 | （待创建） | Docker 镜像、docker-compose 生产配置、部署文档 |
+| M3-2 可视化大屏 | 07-07-fe-dashboard | DashboardView 多图联动（走势+排行+分布+地图） |
+| M3-3 测试 + 加固 | 07-07-test-hardening | Playwright E2E、错误处理、日志、压测 |
+| M3-4 部署 + 文档 | 07-07-deploy-docs | Docker 镜像、docker-compose 生产配置、部署文档 |
 
 执行顺序 M3-1 → M3-2 → M3-3 → M3-4（M3-3 的 E2E 需要大屏页面已存在；M3-4 打包全部成果）。
 
 ## 跨子任务验收（docs/08 §4.2）
 
-- [ ] XGBoost 精度 ≥ RF（MAPE 对比；真实数据不足时以合成数据验证链路）
-- [ ] 大屏页面多图联动：点选区域 → 各图表同步切换
-- [ ] 关键路径单元测试覆盖率 ≥ 70%
-- [ ] Docker 镜像构建成功，`docker-compose -f docker-compose.prod.yml up` 可运行
-- [ ] 全流程端到端通过：采集 → 入库 → 查询 → 图表 → 预测
+- [x] XGBoost 精度 ≥ RF（MAPE 对比；真实数据不足时以合成数据验证链路）
+- [x] 大屏页面多图联动：点选区域 → 各图表同步切换
+- [x] 关键路径单元测试覆盖率 ≥ 70%
+- [x] Docker 镜像构建成功，`docker-compose -f docker-compose.prod.yml up` 可运行
+- [x] 全流程端到端通过：采集 → 入库 → 查询 → 图表 → 预测
 
 ## 约束
 

@@ -18,3 +18,11 @@
 - 后端：/admin/users 增加 keyword/role/is_active 筛选；新增 status 切换与硬删除端点，自我操作返回 400；12 个 pytest 用例。
 - 前端：UserManageView 加筛选栏与封禁/启用/删除操作列，自己行禁用；Playwright MCP 浏览器实测全流程通过（el-button 用原生 click 绕合成事件坑，见 memory）。
 - 全量回归：pytest 171 passed，E2E 6 passed。
+
+## 2026-07-08 · 07-07-admin-data-collect 完成
+
+- 交付：admin_job 表 + job_runner（asyncio 后台执行、kind 互斥部分唯一索引、启动清理）；采集/覆盖查询/任务查询 API；GeoJSON 服务化（DataV 下载、adcode 全国索引回填 363/368、data/geo 落盘、/api/v1/geo/{code}）；前端数据管理页（多选/筛选/轮询进度/历史）。
+- 数据副产品：全国 368 城已入 city 表（带省份）；莆田完整采集；三明/龙岩地图已爬。
+- 关键决策：公开 /cities 改为仅返回有区县数据的城市，避免 368 个空城市污染用户端选择器（采集完成自动失效 api:cities 缓存，新城市即时出现）。
+- 坑：ORM identity map——任务体内 backfill 后重读同 session 需经 ORM 更新对象而非 Core update（测试打桩踩到）；data/ 目录容器 root 属主，宿主机写入要走 docker compose cp / exec。
+- 验证：后端 201→235 tests；E2E 9 用例；dev 与 prod 双形态真实闭环（prod workers=2 下任务正常）。

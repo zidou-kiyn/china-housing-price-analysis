@@ -2,18 +2,24 @@
 
 ## Goal
 
-TBD.
+实现城市搜索 → 区县均价柱状图 → 点击区县显示走势折线图的完整交互流程。
 
 ## Requirements
 
-- TBD
+- **城市搜索**：下拉选择城市（支持拼音/中文搜索过滤）
+- **区县均价柱状图**：选择城市后展示各区县最新月份的供给均价柱状图
+- **走势折线图**：点击区县柱状图 → 展示该区县的均价走势折线图（supply_price + value_price）
+- **城市走势**：同时展示城市整体走势折线图作为对比参考
+- **价格分布**：展示城市级别的价格区间分布饼图
 
 ## Acceptance Criteria
 
-- [ ] TBD
+- [x] 选择泉州 → 柱状图展示 3 个区县均价（晋江、南安、石狮）
+- [x] 点击区县柱 → 折线图展示该区县走势（南安市 13 个月）
+- [x] 城市整体走势折线图同时展示（左右并排对比）
+- [x] 价格分布饼图展示当月数据（21 个区间）
+- [x] 首次加载城市列表正常（filterable 搜索过滤）
 
-## Notes
+## Dependencies
 
-- Keep `prd.md` focused on requirements, constraints, and acceptance criteria.
-- Lightweight tasks can remain PRD-only.
-- For complex tasks, add `design.md` for technical design and `implement.md` for execution planning before `task.py start`.
+- M1-5 api-metadata-price（后端 API）✅

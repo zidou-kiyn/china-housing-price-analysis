@@ -2,35 +2,34 @@ export interface City {
   id: number
   name: string
   code: string
-  province: string
 }
 
 export interface District {
   id: number
-  city_id: number
   name: string
   code: string
 }
 
-export interface PriceInfo {
-  region_type: string
-  region_id: number
-  region_name: string
-  year_month: string
-  supply_price: number
-  attention_price: number | null
-  value_price: number
-}
-
 export interface TrendPoint {
   year_month: string
-  price: number
+  supply_price: number | null
+  attention_price: number | null
+  value_price: number | null
+  sample_count: number | null
 }
 
-export interface TrendData {
-  region_type: string
-  region_id: number
-  region_name: string
-  price_type: string
-  data: TrendPoint[]
+export interface DistributionItem {
+  price_range_low: number
+  price_range_high: number
+  percentage: number | null
+  count: number | null
+}
+
+export interface DistrictOverviewItem {
+  id: number
+  name: string
+  code: string
+  supply_price: number | null
+  attention_price: number | null
+  value_price: number | null
 }

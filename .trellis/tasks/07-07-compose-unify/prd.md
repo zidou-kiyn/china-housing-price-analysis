@@ -23,11 +23,11 @@
 
 ## Acceptance Criteria
 
-- [ ] `docker compose up -d` 起完整 dev 栈，前端 http://localhost:5173 可用、登录与图表正常（数据经 Vite 代理 → 容器内 backend）。
-- [ ] `docker compose -f docker-compose.yml up -d --build` 起生产栈，http://localhost:8080 可用。
-- [ ] 两种方式下 `docker compose ps` 均确认 postgres/redis/backend 无宿主机端口映射；宿主机 `curl localhost:8000` / `psql -h localhost` 连不通。
-- [ ] `docker compose exec backend uv run pytest` 全部通过；`cd frontend && npm run test:e2e` 通过。
-- [ ] `git grep -n "5432:5432\|6379:6379\|8000:8000"` 在 compose 文件中无结果；`docker-compose.prod.yml` 已删除，文档无残留引用。
+- [x] `docker compose up -d` 起完整 dev 栈，前端 http://localhost:5173 可用、登录与图表正常（数据经 Vite 代理 → 容器内 backend）。
+- [x] `docker compose -f docker-compose.yml up -d --build` 起生产栈，http://localhost:8080 可用（登录经 nginx 反代 200）。
+- [x] 两种方式下 `docker compose ps` 均确认 postgres/redis/backend 无宿主机端口映射；宿主机 8000/5432/6379 均连不通。
+- [x] `docker compose exec backend uv run pytest` 159 passed；`cd frontend && npm run test:e2e` 6 passed；type-check 通过（lint 为脚手架遗留死脚本，eslint 从未安装，记录在案不属本任务）。
+- [x] `git grep -n "5432:5432\|6379:6379\|8000:8000"` 在 compose 文件中无结果；`docker-compose.prod.yml` 已删除，docs/08、docs/09 无残留引用。
 
 ## Notes
 

@@ -35,6 +35,11 @@ Validation commands: `.venv/bin/python -m ruff check app tests scripts`,
 - **ML feature hygiene**: all lag/rolling/pct features must be built from `shift`-ed
   history only (no current-month leakage) so training rows and inference rows are
   constructed by the same helper (`app/ml/features.py::_feature_row`).
+- **Ingestion cache invalidation**: `PipelineRunner` clears stale API caches after
+  every run via `app.core.cache.invalidate_api_caches` (redis defaults to the global
+  `redis_client`, so callers need not pass one). Any NEW `api:*` cache key family
+  MUST be added to `_api_cache_patterns` in `app/core/cache.py`, or it will serve
+  stale data for up to its TTL after ingestion.
 
 ## Testing Requirements
 
@@ -43,11 +48,6 @@ Validation commands: `.venv/bin/python -m ruff check app tests scripts`,
   `admin_headers` fixtures; test users must clean up after themselves (`_delete_users`).
 - **Test emails must use `example.com`** — email-validator rejects reserved TLDs
   like `.local` (422 on register).
-- Tests that read city/district lists should delete the relevant `api:*` Redis key
-  first: loaders do NOT invalidate metadata caches yet (known issue, see below).
-
-## Known Issues
-
-- **Stale metadata caches**: pipeline loaders write city/district rows but do not
-  invalidate `api:cities` / `api:districts:{code}` / `api:overview:*` Redis keys
-  (TTL up to 1h). Candidate fix in M3 (invalidate-on-load).
+- Tests that seed data by calling pipeline loaders directly (bypassing
+  `PipelineRunner`) must still delete the relevant `api:*` Redis keys themselves —
+  loaders never touch Redis; invalidation happens at the runner level.

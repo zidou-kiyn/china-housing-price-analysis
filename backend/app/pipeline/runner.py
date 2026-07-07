@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.collector.base import BaseSource, RawRecord, SourceRegistry
 from app.collector.storage import save_raw
+from app.core.cache import invalidate_api_caches, redis_client
 from app.pipeline.cleaners import clean_price_distribution, clean_price_timeline
 from app.pipeline.loaders import (
     create_crawl_job,
@@ -32,7 +33,7 @@ class PipelineRunner:
         redis=None,
     ) -> None:
         self.session_factory = session_factory
-        self.redis = redis
+        self.redis = redis if redis is not None else redis_client
 
     async def run(self, source_name: str, city_code: str) -> dict:
         """端到端执行单城市采集入库，返回统计摘要。"""
@@ -218,23 +219,9 @@ class PipelineRunner:
         return await upsert_price_distributions(session, cleaned, "district", dist_id)
 
     async def _invalidate_cache(self, city_code: str) -> None:
-        if self.redis is None:
-            return
         try:
-            keys = []
-            for pattern in (
-                f"price:{city_code}:*",
-                f"trend:{city_code}:*",
-                "api:cities",
-                f"api:districts:{city_code}",
-                "api:trend:*",
-                "api:dist:*",
-                f"api:overview:{city_code}",
-            ):
-                async for key in self.redis.scan_iter(pattern):
-                    keys.append(key)
-            if keys:
-                await self.redis.delete(*keys)
-                logger.info("已清除 %d 个缓存 key", len(keys))
+            deleted = await invalidate_api_caches(self.redis, city_code)
+            if deleted:
+                logger.info("已清除 %d 个缓存 key", deleted)
         except Exception:
             logger.warning("Redis 缓存清除失败，不影响入库结果", exc_info=True)

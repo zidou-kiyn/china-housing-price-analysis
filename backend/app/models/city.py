@@ -13,6 +13,7 @@ class City(Base):
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     code: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     province: Mapped[str | None] = mapped_column(String(50))
+    adcode: Mapped[str | None] = mapped_column(String(20))  # 高德行政区划码，地图爬取用
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 

@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.database import engine
 from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
+from app.services.job_runner import cleanup_stale_jobs
 
 setup_logging(settings.log_level)
 access_logger = logging.getLogger("app.access")
@@ -18,6 +19,8 @@ access_logger = logging.getLogger("app.access")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 重启后遗留的 running 任务标记 failed（多 worker 重复执行幂等）
+    await cleanup_stale_jobs()
     yield
     await engine.dispose()
     await redis_client.aclose()

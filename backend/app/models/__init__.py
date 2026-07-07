@@ -1,3 +1,4 @@
+from app.models.admin_job import AdminJob
 from app.models.area import Area
 from app.models.city import City
 from app.models.community import Community
@@ -11,6 +12,7 @@ from app.models.price_snapshot import PriceSnapshot
 from app.models.user import UserAccount
 
 __all__ = [
+    "AdminJob",
     "Area",
     "City",
     "Community",

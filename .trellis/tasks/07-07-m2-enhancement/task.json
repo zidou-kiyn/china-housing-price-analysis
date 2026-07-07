@@ -1,0 +1,31 @@
+{
+  "id": "m2-enhancement",
+  "name": "m2-enhancement",
+  "title": "M2 增强阶段（排行/对比/地图/鉴权/预测）",
+  "description": "M2 阶段父任务：M2-2 排行对比地图 API、M2-3 前端对比地图、M2-4 JWT 鉴权权限、M2-5 ML 预测链路。M2-1 演示采集适配器暂缓。",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P0",
+  "creator": "zidou-kiyn",
+  "assignee": "zidou-kiyn",
+  "createdAt": "2026-07-07",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-07-api-rank-compare-map",
+    "07-07-fe-rank-compare-map",
+    "07-07-auth-rbac",
+    "07-07-ml-predict"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

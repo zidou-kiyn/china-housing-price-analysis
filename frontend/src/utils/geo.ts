@@ -1,16 +1,15 @@
+import api from '@/api'
 import * as echarts from 'echarts'
 
 const registeredMaps = new Set<string>()
 
-/** 加载并注册城市 geojson；文件缺失或非法时返回 false。 */
+/** 经 geo API 加载并注册城市 geojson（内存缓存）；缺图或非法时返回 false。 */
 export async function loadGeoJson(cityCode: string): Promise<boolean> {
   if (registeredMaps.has(cityCode)) return true
   try {
-    const resp = await fetch(`/geo/${cityCode}.json`)
-    if (!resp.ok) return false
-    const geoJson = await resp.json()
+    const geoJson = await api.get<never, { features?: unknown[] }>(`/geo/${cityCode}`)
     if (!geoJson.features) return false
-    echarts.registerMap(cityCode, geoJson)
+    echarts.registerMap(cityCode, geoJson as Parameters<typeof echarts.registerMap>[1])
     registeredMaps.add(cityCode)
     return true
   } catch {

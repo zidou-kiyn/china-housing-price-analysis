@@ -13,8 +13,8 @@ function onCommand(command: string) {
   if (command === 'logout') {
     auth.logout()
     router.push('/')
-  } else if (command === 'admin-users') {
-    router.push('/admin/users')
+  } else if (command.startsWith('admin-')) {
+    router.push(`/admin/${command.slice('admin-'.length)}`)
   }
 }
 </script>
@@ -41,6 +41,7 @@ function onCommand(command: string) {
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item v-if="auth.isAdmin" command="admin-users">用户管理</el-dropdown-item>
+                <el-dropdown-item v-if="auth.isAdmin" command="admin-data">数据管理</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>

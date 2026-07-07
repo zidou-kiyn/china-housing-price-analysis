@@ -122,3 +122,43 @@ export interface PredictionResponse {
   model_version: string
   predictions: PredictionPoint[]
 }
+
+// ---- 管理端后台任务与数据采集 ----
+
+export interface AdminJob {
+  id: number
+  kind: 'collect' | 'geo_fetch' | 'train'
+  status: 'pending' | 'running' | 'success' | 'failed'
+  payload: Record<string, unknown> | null
+  progress_done: number
+  progress_total: number
+  result: Array<Record<string, unknown>> | null
+  error: string | null
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+}
+
+export interface AdminJobListResponse {
+  total: number
+  page: number
+  page_size: number
+  items: AdminJob[]
+}
+
+export interface CityCoverage {
+  id: number
+  name: string
+  code: string
+  province: string | null
+  district_count: number
+  latest_month: string | null
+  has_geo: boolean
+}
+
+export interface CityCoverageListResponse {
+  total: number
+  page: number
+  page_size: number
+  items: CityCoverage[]
+}

@@ -8,7 +8,9 @@
 | 07-07 23:45 | adcode 全国索引回填（首次爬图触发） | 363/368 回填，5 城名称歧义待显式指定 |
 | 07-08 00:0x | 莆田(pt)数据+图、三明(sm)/龙岩(ly)图 | 成功（功能验证时顺带完成） |
 | 07-08 00:2x | creprice 触发 IP 级限流（SSL EOF） | **数据采集暂停等冷却**，Monitor 每 5 分钟探测 |
-| 07-08 00:2x | 地图全量爬取任务 #97（362 城，DataV 独立源不受影响） | 进行中 |
+| 07-08 00:2x | 地图全量爬取任务 #97（362 城，DataV 独立源不受影响） | success：323 成功 / 39 失败 |
+| 07-08 00:4x | 4 个自治州显式 adcode 补爬（hnz/bazhou/bozhouxj/kz） | 全部成功，**地图覆盖 333/368** |
+| 07-08 00:3x | creprice 恢复探测 200，首批 20 城采集任务 #98 提交 | 进行中（含 bj/cq 大城市） |
 
 ## 执行手册（后续会话续跑用）
 
@@ -23,6 +25,17 @@
 5. **验收**（见 prd.md）：≥95% 城市有区县+最新快照；抽查北上广蓉汉 5 城前端展示；预测可用；覆盖统计写回本文件。
 
 ## 失败清单
+
+### 地图（终态：35 城无图，均为数据源天然限制，不再重试）
+
+不设区城市（DataV 无 `_full` 区县边界，前端地图无区县可着色，属正常）：
+- 广东：dg(东莞) zhongshan(中山)；甘肃：jyg(嘉峪关)；河南：jiyuan(济源)
+- 湖北省直辖：qianjiang(潜江) snj(神农架) tm(天门) xiantao(仙桃)
+- 海南省直辖县市（15）：baisha baoting changjiang cm danzhou da df ledong lg lingshui qh qiongzhong tunchang wanning wc wzs
+- 新疆兵团市（12）：ale beitun hyh kkdl ky shz shuanghe tmg tmsk wjq xinxing(无 adcode)
+- 已补爬成功：hnz=632500 bazhou=652800 bozhouxj=652700 kz=653000（自治州缩写名索引未命中，显式指定后成功）
+
+### 数据采集
 
 （待各批次执行后填写）
 

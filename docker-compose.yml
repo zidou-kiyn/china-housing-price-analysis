@@ -55,6 +55,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+    # dev/prod 显式区分镜像名，避免切换形态时共享 tag 被覆盖（nginx 镜像跑 npm 会崩）
+    image: housing-price-frontend:prod
     ports:
       - "8080:80"
     depends_on:

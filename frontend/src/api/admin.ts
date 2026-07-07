@@ -2,6 +2,7 @@ import type {
   AdminJob,
   AdminJobListResponse,
   CityCoverageListResponse,
+  CollectSourcesResponse,
   ProxySetting,
   ProxyTestResult,
   UserAdmin,
@@ -73,8 +74,19 @@ export function submitCollect(payload: {
   city_codes?: string[]
   all?: boolean
   all_missing?: boolean
+  source?: string
 }): Promise<AdminJob> {
   return api.post('/admin/collect', payload)
+}
+
+// ---- 数据源切换 ----
+
+export function fetchCollectSources(): Promise<CollectSourcesResponse> {
+  return api.get('/admin/collect/sources')
+}
+
+export function saveCollectSource(source: string): Promise<CollectSourcesResponse> {
+  return api.put('/admin/collect/source', { source })
 }
 
 export function submitGeoFetch(payload: {

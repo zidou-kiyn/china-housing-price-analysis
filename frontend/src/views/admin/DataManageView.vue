@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import {
   fetchCityCoverage,
+  fetchCollectSources,
   fetchJobs,
   fetchProxySetting,
   refreshCities,
+  saveCollectSource,
   saveProxySetting,
   submitCollect,
   submitGeoFetch,
   testProxy,
 } from '@/api/admin'
 import { usePolling } from '@/composables/usePolling'
-import type { AdminJob, CityCoverage, ProxyTestResult } from '@/types'
+import type { AdminJob, CityCoverage, CollectSource, ProxyTestResult } from '@/types'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -181,6 +183,48 @@ async function onTestProxy() {
   }
 }
 
+// ---- 数据源切换 ----
+const sources = ref<CollectSource[]>([])
+const currentSource = ref('')
+const sourceSaving = ref(false)
+
+const CAPABILITY_LABELS: Record<string, string> = {
+  cities: '城市',
+  districts: '区县',
+  price_timeline: '均价走势',
+  price_distribution: '价格分布',
+}
+
+const PRICE_UNIT_LABELS: Record<string, string> = {
+  cny_per_sqm: '元/㎡',
+  index: '价格指数',
+}
+
+const currentSourceMeta = computed(() =>
+  sources.value.find((s) => s.name === currentSource.value),
+)
+
+async function loadSources() {
+  const resp = await fetchCollectSources()
+  sources.value = resp.items
+  currentSource.value = resp.current
+}
+
+async function onChangeSource(name: string) {
+  sourceSaving.value = true
+  try {
+    const resp = await saveCollectSource(name)
+    sources.value = resp.items
+    currentSource.value = resp.current
+    ElMessage.success(`当前数据源已切换为 ${name}`)
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail ?? '切换失败')
+    await loadSources() // 回滚到后端真实值
+  } finally {
+    sourceSaving.value = false
+  }
+}
+
 // ---- 展示辅助 ----
 const KIND_LABELS: Record<string, string> = {
   collect: '数据采集',
@@ -230,7 +274,7 @@ function formatTime(iso: string | null): string {
 }
 
 onMounted(async () => {
-  await Promise.all([loadCities(), loadJobs(), loadProxy()])
+  await Promise.all([loadCities(), loadJobs(), loadProxy(), loadSources()])
 })
 watch([page, pageSize], loadCities)
 watch(historyPage, loadJobs)
@@ -239,6 +283,42 @@ watch(historyPage, loadJobs)
 <template>
   <div class="admin-page">
     <h2>数据管理</h2>
+
+    <el-card class="source-card">
+      <div class="source-row">
+        <span class="source-label">采集数据源</span>
+        <el-select
+          v-model="currentSource"
+          class="source-select"
+          :loading="sourceSaving"
+          :disabled="hasActiveJob"
+          @change="onChangeSource"
+        >
+          <el-option
+            v-for="s in sources"
+            :key="s.name"
+            :label="s.name"
+            :value="s.name"
+          />
+        </el-select>
+        <div v-if="currentSourceMeta" class="source-caps">
+          <el-tag size="small" type="info">
+            {{ PRICE_UNIT_LABELS[currentSourceMeta.price_unit] ?? currentSourceMeta.price_unit }}
+          </el-tag>
+          <el-tag
+            v-for="cap in currentSourceMeta.capabilities"
+            :key="cap"
+            size="small"
+            type="success"
+          >
+            {{ CAPABILITY_LABELS[cap] ?? cap }}
+          </el-tag>
+        </div>
+      </div>
+      <div class="source-hint">
+        采集与「刷新城市列表」默认使用此数据源；进行中任务时不可切换。各源能力不同，编排会按能力自适应。
+      </div>
+    </el-card>
 
     <el-card class="proxy-card">
       <div class="proxy-row">
@@ -420,6 +500,40 @@ h2 {
 h3 {
   margin: 24px 0 12px;
   color: #303133;
+}
+
+.source-card {
+  margin-bottom: 16px;
+}
+
+.source-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.source-label {
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+}
+
+.source-select {
+  width: 200px;
+}
+
+.source-caps {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.source-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 
 .proxy-card {

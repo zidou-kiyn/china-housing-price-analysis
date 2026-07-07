@@ -184,3 +184,14 @@ export interface ProxyTestResult {
   elapsed_ms: number | null
   error: string | null
 }
+
+export interface CollectSource {
+  name: string
+  capabilities: string[]
+  price_unit: string
+}
+
+export interface CollectSourcesResponse {
+  current: string
+  items: CollectSource[]
+}

@@ -111,6 +111,13 @@ watch([regionType, selectedCity, page, pageSize], loadRank)
       <el-table-column prop="year_month" label="数据月份" min-width="100">
         <template #default="{ row }">{{ row.year_month ?? '-' }}</template>
       </el-table-column>
+      <el-table-column v-if="regionType === 'district'" label="操作" width="90">
+        <template #default="{ row }">
+          <RouterLink v-if="row.supply_price != null" :to="`/predict/district/${row.region_id}`">
+            <el-button link type="primary" size="small">预测</el-button>
+          </RouterLink>
+        </template>
+      </el-table-column>
     </el-table>
 
     <el-pagination

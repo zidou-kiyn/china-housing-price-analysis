@@ -106,3 +106,19 @@ export interface UserListResponse {
   page_size: number
   items: UserAdmin[]
 }
+
+export interface PredictionPoint {
+  target_month: string
+  predicted_price: number
+  confidence_lower: number | null
+  confidence_upper: number | null
+}
+
+export interface PredictionResponse {
+  region_type: RegionType
+  region_id: number
+  region_name: string
+  model_name: string
+  model_version: string
+  predictions: PredictionPoint[]
+}

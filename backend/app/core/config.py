@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     crawl_request_delay_max: float = 3.0
     crawl_max_retries: int = 3
 
+    ml_model_dir: str = "models"
+
     app_env: str = "development"
     debug: bool = False
 

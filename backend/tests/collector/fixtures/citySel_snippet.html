@@ -1,0 +1,33 @@
+<div class="citySel ui0" v-if="type==1">
+  <div class="item" id="selA">
+    <div class="tag"><span>A</span></div>
+    <div class="tag2 clearfix">
+      <a class="sheng">安徽</a>
+      <a class="city pr0" @click="addUsedCity('aq','','安庆')" href="/city/aq.html">安庆</a>
+      <span class="dist"><a style="padding: 12px 0px 11px;">（</a>
+        <a class="dist" @click="addUsedCity('aq','QS','潜山市')" href="/district/QS.html?city=aq">潜山市</a>
+        <a class="dist" @click="addUsedCity('aq','TC','桐城市')" href="/district/TC.html?city=aq">桐城市</a>
+      <a style="padding: 12px 0px 11px;">）</a></span>
+      <a class="city " @click="addUsedCity('hf','','合肥')" href="/city/hf.html">合肥</a>
+      <span class="dist"><a style="padding: 12px 0px 11px;">（</a>
+        <a class="dist" @click="addUsedCity('hf','CH','巢湖市')" href="/district/CH.html?city=hf">巢湖市</a>
+      <a style="padding: 12px 0px 11px;">）</a></span>
+    </div>
+  </div>
+  <div class="item" id="selQ">
+    <div class="tag"><span>Q</span></div>
+    <div class="tag2 clearfix">
+      <a class="sheng">福建</a>
+      <a class="city " @click="addUsedCity('qz','','泉州')" href="/city/qz.html">泉州</a>
+    </div>
+  </div>
+</div>
+<div class="citySel ui1" v-if="type==2">
+  <div class="item">
+    <div class="tag2 clearfix">
+      <a class="sheng">安徽</a>
+      <a class="city pr0" @click="addUsedCity('aq','','安庆')" href="/city/aq.html">安庆</a>
+      <a class="city " @click="addUsedCity('hf','','合肥')" href="/city/hf.html">合肥</a>
+    </div>
+  </div>
+</div>

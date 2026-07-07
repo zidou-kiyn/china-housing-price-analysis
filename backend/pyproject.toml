@@ -36,3 +36,8 @@ dev = [
     "pytest-asyncio>=0.23,<1",
     "pytest-cov>=5,<6",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: 需要网络的集成/冒烟测试（默认排除，用 -m slow 运行）",
+]

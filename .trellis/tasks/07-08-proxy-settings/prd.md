@@ -32,8 +32,8 @@
 
 ## Acceptance Criteria
 
-- [ ] 页面保存 resin 代理并测试：代理可达但 creprice 超时（错误信息可见）；关闭启用后采集恢复直连。
-- [ ] 启用一个可用代理后触发采集，backend 请求经代理出口（打桩单测断言 session.proxies / 手动验证）。
-- [ ] GET 响应中密码脱敏；PUT 仅改开关不丢已存 URL。
-- [ ] 非 admin 访问设置端点 403。
-- [ ] pytest 覆盖：KV 存取、脱敏、PUT 语义（仅开关/换 URL/清除）、test 端点（requests 打桩）、http_client 代理注入。
+- [x] 页面保存 resin 代理并测试：代理可达但 creprice 超时（错误信息可见）；关闭启用后采集恢复直连。
+- [x] 启用一个可用代理后触发采集，backend 请求经代理出口（打桩单测断言 session.proxies / 手动验证）。
+- [x] GET 响应中密码脱敏；PUT 仅改开关不丢已存 URL。
+- [x] 非 admin 访问设置端点 403。
+- [x] pytest 覆盖：KV 存取、脱敏、PUT 语义（仅开关/换 URL/清除）、test 端点（requests 打桩）、http_client 代理注入。

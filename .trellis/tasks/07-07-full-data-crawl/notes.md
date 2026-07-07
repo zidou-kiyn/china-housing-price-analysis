@@ -43,3 +43,9 @@
 
 - adcode 缺失 5 城：任务 result 中会以 "无 adcode" 失败呈现，需人工 `scripts/fetch_geo.py <code>=<adcode>` 显式指定。
 - 直辖市（北京/上海等）在 creprice 的区县为「区」级，正常采集；数据源部分小城市无区县级数据属天然限制。
+
+## 2026-07-08 暂停记录（用户指令）
+
+- 采集批次 1（#98）在 3/20 时经重启 backend 终止（interrupted by restart），已采 3 城数据有效（幂等 upsert）。
+- 暂停原因：直连触发过限流，改为先落地「采集代理设置」功能（07-08-proxy-settings，已完成）。
+- **恢复条件**：用户在 数据管理页 → 采集代理 卡片配置 iproyal 国内 IP 代理（境外代理已实测被 creprice 拒绝）、测试连通后启用，再按本手册「分批采集」继续。resin 代理 URL 已存库（未启用）。

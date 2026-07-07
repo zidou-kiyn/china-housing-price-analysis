@@ -33,3 +33,10 @@
 - 前端：ModelManageView（版本表/训练表单/进行中轮询/切换活跃二次确认），抽 usePolling composable 并回改 DataManageView；E2E 12 用例全过。
 - 实测：全量数据训练 v1.1/v1.2 产出，切 v1.1 后 /predict 即时用新模型（莆田新城市可预测），切回 v1.0。
 - 注意：tests/pipeline/test_runner_live.py（真实访问 creprice）当日多次真实采集后被源站 SSL 层限流而失败（外部因素，其余 199 项全过）——full-data-crawl 执行时须严格限速、避免高频重试。
+
+## 2026-07-08 · 07-08-proxy-settings 完成（full-data-crawl 暂停）
+
+- 用户指令终止全量采集（批次 1 于 3/20 重启终止），新增管理端采集代理设置功能。
+- 交付：app_setting KV 表（003 迁移）+ GET/PUT/test 代理端点（密码脱敏、URL 缺省=仅改开关）+ CrawlerHttpClient 构造时自动读设置（geo/DataV 保持直连）+ 数据管理页代理卡片。
+- 实测结论：用户自建 resin 代理（美国出口）本身可用但 creprice 拒境外 IP（TLS 断连）→ 已存库未启用；采集恢复需用户自配 iproyal 国内代理（密钥用户自持）。
+- 教训：测试 fixture 若清理与真实配置同 key 的数据,必须暂存恢复而非直接删除（第一版 teardown 清掉了刚保存的真实配置）。

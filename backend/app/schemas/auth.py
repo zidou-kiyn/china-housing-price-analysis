@@ -42,3 +42,7 @@ class UserListResponse(BaseModel):
 
 class RoleUpdateRequest(BaseModel):
     role: str = Field(pattern="^(user|admin)$")
+
+
+class StatusUpdateRequest(BaseModel):
+    is_active: bool

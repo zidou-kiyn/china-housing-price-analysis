@@ -22,7 +22,7 @@ class PredictionResponse(BaseModel):
 
 
 class TrainRequest(BaseModel):
-    model_name: str = Field("random_forest", pattern="^(random_forest|xgboost)$")
+    model_name: str = Field("random_forest", pattern="^(random_forest|xgboost|exp_smoothing)$")
 
     model_config = {"protected_namespaces": ()}
 

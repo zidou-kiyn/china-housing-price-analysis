@@ -366,6 +366,109 @@ ALGORITHMS = {
     "xgboost": _fit_xgboost,
 }
 
+MIN_ES_SAMPLES = 6
+
+
+def _train_exp_smoothing(
+    series_list: list[RegionSeries],
+    store: ModelStore,
+    dataset_meta: dict | None = None,
+) -> dict:
+    """为每个区域独立拟合 ExponentialSmoothing，打包为 dict 存储。"""
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing as HoltWinters
+
+    models: dict[tuple[str, int], object] = {}
+    skipped: list[tuple[str, int]] = []
+    eval_mae, eval_mape_vals = [], []
+    worst_regions: list[dict] = []
+
+    for rs in series_list:
+        key = (rs.region_type, rs.region_id)
+        if len(rs.prices) < MIN_ES_SAMPLES:
+            skipped.append(key)
+            continue
+
+        prices = np.array(rs.prices, dtype=float)
+        split = max(int(len(prices) * 0.8), 2)
+        train_p, val_p = prices[:split], prices[split:]
+
+        try:
+            fitted = HoltWinters(
+                train_p, trend="add", seasonal=None,
+                initialization_method="estimated",
+            ).fit(optimized=True)
+        except Exception:
+            skipped.append(key)
+            continue
+
+        models[key] = fitted
+
+        if len(val_p) > 0:
+            forecast = fitted.forecast(len(val_p))
+            forecast = np.array(forecast, dtype=float)
+            mae = float(np.mean(np.abs(val_p - forecast)))
+            nonzero = val_p != 0
+            mape = float(np.mean(np.abs((val_p[nonzero] - forecast[nonzero]) / val_p[nonzero])) * 100) if nonzero.any() else 0.0
+            eval_mae.append(mae)
+            eval_mape_vals.append(mape)
+            worst_regions.append({
+                "region_type": rs.region_type,
+                "region_id": rs.region_id,
+                "mape": round(mape, 2),
+                "samples": len(rs.prices),
+            })
+
+    if not models:
+        raise ValueError("没有足够数据的区域可供训练 ExponentialSmoothing")
+
+    global_mae = round(float(np.mean(eval_mae)), 2) if eval_mae else 0.0
+    global_mape = round(float(np.mean(eval_mape_vals)), 2) if eval_mape_vals else 0.0
+
+    resid_std_pcts = []
+    for rs in series_list:
+        key = (rs.region_type, rs.region_id)
+        if key not in models:
+            continue
+        fitted = models[key]
+        fv = np.array(fitted.fittedvalues, dtype=float)
+        tp = np.array(rs.prices[:len(fv)], dtype=float)
+        nonzero = tp != 0
+        if nonzero.any():
+            resid_std_pcts.append(float(np.std((tp[nonzero] - fv[nonzero]) / tp[nonzero])))
+
+    avg_resid_std_pct = round(float(np.mean(resid_std_pcts)), 4) if resid_std_pcts else None
+
+    worst_regions.sort(key=lambda r: -r["mape"])
+
+    version = store.next_version("exp_smoothing")
+    meta = {
+        "model_name": "exp_smoothing",
+        "version": version,
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "n_lags": 0,
+        "features": [],
+        "metrics": {
+            "mae": global_mae,
+            "rmse": 0.0,
+            "mape": global_mape,
+            "r2": 0.0,
+        },
+        "training_samples": sum(len(rs.prices) for rs in series_list if (rs.region_type, rs.region_id) in models),
+        "validation_samples": sum(max(len(rs.prices) - max(int(len(rs.prices) * 0.8), 2), 0) for rs in series_list if (rs.region_type, rs.region_id) in models),
+        "ci_strategy": "residual",
+        "resid_std": 0.0,
+        "resid_std_pct": avg_resid_std_pct,
+        "per_region_metrics": {
+            "regions": len(models),
+            "skipped": len(skipped),
+            "median_mape": round(float(np.median(eval_mape_vals)), 2) if eval_mape_vals else 0.0,
+            "worst": worst_regions[:WORST_REGIONS_LIMIT],
+        },
+        "dataset": dataset_meta,
+    }
+    store.save("exp_smoothing", version, models, meta)
+    return meta
+
 
 def train_model(
     algorithm: str,
@@ -380,6 +483,9 @@ def train_model(
     数据不足以构成任何窗口时抛 ValueError。
     dataset_meta（多源构建器指纹）原样并入模型 meta["dataset"] 供追溯。
     """
+    if algorithm == "exp_smoothing":
+        return _train_exp_smoothing(series_list, store, dataset_meta)
+
     if algorithm not in ALGORITHMS:
         raise ValueError(f"未知模型算法: {algorithm}")
 

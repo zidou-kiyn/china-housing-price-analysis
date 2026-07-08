@@ -2,6 +2,8 @@
 
 import asyncio
 
+import numpy as np
+
 from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -12,7 +14,7 @@ from app.core.config import settings
 from app.core.database import async_session_factory
 from app.core.errors import ApiError
 from app.ml.dataset import build_multi_source_series
-from app.ml.predict import rolling_predict
+from app.ml.predict import PredictionPoint, rolling_predict
 from app.ml.train import ModelStore
 from app.ml.train import train_model as run_training
 from app.models.city import City
@@ -35,6 +37,46 @@ from app.services import job_runner
 from app.services.price_select import select_source_snapshots
 
 router = APIRouter(tags=["predictions"])
+
+
+def _predict_es(
+    models_dict: dict,
+    meta: dict,
+    region_type: str,
+    region_id: int,
+    months_ahead: int,
+    last_month: str,
+) -> tuple[list[PredictionPoint], str]:
+    """从 ES dict 模型中取子模型并 forecast。"""
+    from app.ml.features import shift_month
+
+    key = (region_type, region_id)
+    if key not in models_dict:
+        raise ApiError(404, "该区域暂无预测数据（指数平滑模型未覆盖）", "PREDICTION_NOT_FOUND")
+
+    es_model = models_dict[key]
+    forecast = np.array(es_model.forecast(months_ahead), dtype=float)
+
+    fv = np.array(es_model.fittedvalues, dtype=float)
+    tp = np.array(es_model.model.endog, dtype=float)
+    resid_std = float(np.std(tp - fv)) if len(tp) > 1 else 0.0
+    resid_std_pct = meta.get("resid_std_pct")
+
+    points: list[PredictionPoint] = []
+    for i, val in enumerate(forecast):
+        target_month = shift_month(last_month, i + 1)
+        if resid_std_pct is not None:
+            margin = 1.96 * abs(resid_std_pct) * abs(val)
+        else:
+            margin = 1.96 * resid_std
+        points.append(PredictionPoint(
+            target_month=target_month,
+            predicted_price=round(val),
+            confidence_lower=round(val - margin),
+            confidence_upper=round(val + margin),
+        ))
+
+    return points, "monthly"
 
 
 def _store() -> ModelStore:
@@ -109,10 +151,14 @@ async def get_prediction(
     for rs in series_list:
         rs.city_tier = tier_map.get(rs.region_id)
 
-    try:
-        points, data_quality = rolling_predict(model, meta, series_list[0], months_ahead)
-    except ValueError as exc:
-        raise ApiError(404, str(exc), "PREDICTION_NOT_FOUND")
+    if meta["model_name"] == "exp_smoothing":
+        last_month = series_list[0].months[-1] if series_list[0].months else "2026-01"
+        points, data_quality = _predict_es(model, meta, region_type, region_id, months_ahead, last_month)
+    else:
+        try:
+            points, data_quality = rolling_predict(model, meta, series_list[0], months_ahead)
+        except ValueError as exc:
+            raise ApiError(404, str(exc), "PREDICTION_NOT_FOUND")
 
     # 预测表治理：同 (region, model_name) 只保留当前版本，旧版本行同事务先删后插
     await db.execute(

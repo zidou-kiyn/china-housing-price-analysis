@@ -106,7 +106,7 @@ async function onCleanup() {
 }
 
 // ---- 训练表单 ----
-const algorithm = ref<'random_forest' | 'xgboost'>('random_forest')
+const algorithm = ref<'random_forest' | 'xgboost' | 'exp_smoothing'>('random_forest')
 
 // ---- 训练任务轮询 ----
 const activeJob = ref<AdminJob | null>(null)
@@ -217,8 +217,9 @@ onMounted(async () => {
     <el-card class="train-card">
       <div class="train-form">
         <el-select v-model="algorithm" class="algo-select">
-          <el-option label="random_forest" value="random_forest" />
-          <el-option label="xgboost" value="xgboost" />
+          <el-option label="随机森林 (Random Forest)" value="random_forest" />
+          <el-option label="XGBoost" value="xgboost" />
+          <el-option label="指数平滑 (Exponential Smoothing)" value="exp_smoothing" />
         </el-select>
         <el-button type="primary" :disabled="training" @click="onSubmitTrain">
           开始训练

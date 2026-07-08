@@ -34,6 +34,9 @@ class ModelVersionOut(BaseModel):
     metrics: dict
     training_samples: int
     is_active: bool
+    # naive 基线对比（train.py meta.baselines）；旧版本 meta 无该字段时为 None
+    beats_baseline: bool | None = None
+    baseline_mape: float | None = None
 
     model_config = {"protected_namespaces": ()}
 

@@ -7,22 +7,29 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from xgboost import XGBRegressor
 
-from app.ml.features import RegionSeries, build_training_frame, feature_columns
+from app.ml.features import REGION_TYPE_ENC, RegionSeries, build_training_frame, feature_columns
 
 LAG_CANDIDATES = (12, 6, 3)
 MIN_SAMPLES = 20
 MIN_CV_SAMPLES = 30
 CV_FOLDS = 3
+WORST_REGIONS_LIMIT = 5  # per_region_metrics 只留最差 N 个，避免 330 城时 meta 膨胀
 RF_PARAMS = {
     "n_estimators": 100,
     "max_depth": 10,
     "min_samples_split": 5,
     "random_state": 42,
 }
+RF_GRID = {
+    "n_estimators": (100, 300),
+    "max_depth": (10, None),
+}
+RF_FIXED_PARAMS = {"min_samples_split": 5}  # 网格外固定项（与 RF_PARAMS 一致）
 XGB_DEFAULT_PARAMS = {
     "n_estimators": 300,
     "max_depth": 3,
@@ -144,12 +151,117 @@ def _mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return float(np.mean(np.abs((y_true[nonzero] - y_pred[nonzero]) / y_true[nonzero])) * 100)
 
 
+def _baseline_metrics(frame_val: pd.DataFrame, n_lags: int) -> dict:
+    """naive 基线（同一验证集）：last_value=lag_1、seasonal=lag_12（窗口不足时 None）。
+
+    基线只作评估参照，不落盘为模型；模型 MAPE 应与其直接对比（beats_baseline）。
+    """
+    y_val = frame_val["y"].to_numpy()
+
+    def entry(y_hat: np.ndarray) -> dict:
+        return {
+            "mae": round(float(np.mean(np.abs(y_val - y_hat))), 2),
+            "mape": round(_mape(y_val, y_hat), 2),
+        }
+
+    return {
+        "last_value": entry(frame_val["lag_1"].to_numpy()),
+        "seasonal": entry(frame_val["lag_12"].to_numpy()) if n_lags >= 12 else None,
+    }
+
+
+def _per_region_metrics(frame_val: pd.DataFrame, y_pred: np.ndarray) -> dict:
+    """验证集按区域分组 MAPE：区域数、中位数、最差 WORST_REGIONS_LIMIT 个。"""
+    enc_to_type = {v: k for k, v in REGION_TYPE_ENC.items()}
+    df = frame_val[["region_type_enc", "region_id", "y"]].copy()
+    df["y_pred"] = y_pred
+    groups = [
+        {
+            "region_type": enc_to_type.get(int(type_enc), "unknown"),
+            "region_id": int(region_id),
+            "mape": round(_mape(g["y"].to_numpy(), g["y_pred"].to_numpy()), 2),
+            "samples": int(len(g)),
+        }
+        for (type_enc, region_id), g in df.groupby(["region_type_enc", "region_id"])
+    ]
+    return {
+        "regions": len(groups),
+        "median_mape": round(float(np.median([g["mape"] for g in groups])), 2),
+        "worst": sorted(groups, key=lambda g: -g["mape"])[:WORST_REGIONS_LIMIT],
+    }
+
+
+def _stratified_metrics(
+    frame_val: pd.DataFrame, y_pred: np.ndarray
+) -> tuple[dict | None, dict]:
+    """按 is_annual_interp 分层：真实月度层指标 + 两层样本数。
+
+    年度插值样本被线性平滑、指标必然偏乐观；真实月度层是更诚实的口径。
+    验证集无真实月度样本时指标为 None。
+    """
+    real_mask = frame_val["is_annual_interp"].to_numpy() == 0
+    strata = {
+        "real_monthly": int(real_mask.sum()),
+        "annual_interp": int(len(real_mask) - real_mask.sum()),
+    }
+    if not real_mask.any():
+        return None, strata
+    return _evaluate(frame_val["y"].to_numpy()[real_mask], y_pred[real_mask]), strata
+
+
+def _grid_search_cv(
+    estimator_cls,
+    grid: dict[str, tuple],
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    w_train: np.ndarray | None = None,
+    fixed_params: dict | None = None,
+) -> tuple[dict, dict]:
+    """小网格 × TimeSeriesSplit 选参骨架（RF/XGB 共用），sample_weight 折内切片。
+
+    返回 (最优参数含 random_state, cv_info)；cv_info.best_params 只含网格键。
+    """
+    splitter = TimeSeriesSplit(n_splits=CV_FOLDS)
+    best = None
+    for combo in product(*grid.values()):
+        candidate = dict(fixed_params or {})
+        candidate.update(zip(grid.keys(), combo))
+        candidate["random_state"] = 42
+        fold_mapes = []
+        for train_idx, val_idx in splitter.split(x_train):
+            m = estimator_cls(**candidate)
+            m.fit(
+                x_train[train_idx],
+                y_train[train_idx],
+                sample_weight=None if w_train is None else w_train[train_idx],
+            )
+            fold_mapes.append(_mape(y_train[val_idx], m.predict(x_train[val_idx])))
+        mean_mape = float(np.mean(fold_mapes))
+        if best is None or mean_mape < best[0]:
+            best = (mean_mape, candidate, fold_mapes)
+    params = best[1]
+    cv_info = {
+        "folds": CV_FOLDS,
+        "best_params": {k: params[k] for k in grid},
+        "fold_mapes": [round(m, 2) for m in best[2]],
+        "mean_mape": round(best[0], 2),
+    }
+    return params, cv_info
+
+
 def _fit_random_forest(
     x_train: np.ndarray, y_train: np.ndarray, w_train: np.ndarray | None = None
 ):
-    model = RandomForestRegressor(**RF_PARAMS)
+    """小网格 × 时序 CV 选参；样本不足时用默认参数（cv=None）。"""
+    params = dict(RF_PARAMS)
+    cv_info = None
+    if len(x_train) >= MIN_CV_SAMPLES:
+        params, cv_info = _grid_search_cv(
+            RandomForestRegressor, RF_GRID, x_train, y_train, w_train, RF_FIXED_PARAMS
+        )
+    model = RandomForestRegressor(**params)
     model.fit(x_train, y_train, sample_weight=w_train)
-    return model, None
+    return model, cv_info
 
 
 def _fit_xgboost(
@@ -159,34 +271,7 @@ def _fit_xgboost(
     params = dict(XGB_DEFAULT_PARAMS)
     cv_info = None
     if len(x_train) >= MIN_CV_SAMPLES:
-        splitter = TimeSeriesSplit(n_splits=CV_FOLDS)
-        best = None
-        for n_estimators, max_depth, learning_rate in product(*XGB_GRID.values()):
-            candidate = {
-                "n_estimators": n_estimators,
-                "max_depth": max_depth,
-                "learning_rate": learning_rate,
-                "random_state": 42,
-            }
-            fold_mapes = []
-            for train_idx, val_idx in splitter.split(x_train):
-                m = XGBRegressor(**candidate)
-                m.fit(
-                    x_train[train_idx],
-                    y_train[train_idx],
-                    sample_weight=None if w_train is None else w_train[train_idx],
-                )
-                fold_mapes.append(_mape(y_train[val_idx], m.predict(x_train[val_idx])))
-            mean_mape = float(np.mean(fold_mapes))
-            if best is None or mean_mape < best[0]:
-                best = (mean_mape, candidate, fold_mapes)
-        params = best[1]
-        cv_info = {
-            "folds": CV_FOLDS,
-            "best_params": {k: v for k, v in params.items() if k != "random_state"},
-            "fold_mapes": [round(m, 2) for m in best[2]],
-            "mean_mape": round(best[0], 2),
-        }
+        params, cv_info = _grid_search_cv(XGBRegressor, XGB_GRID, x_train, y_train, w_train)
     model = XGBRegressor(**params)
     model.fit(x_train, y_train, sample_weight=w_train)
     return model, cv_info
@@ -251,6 +336,11 @@ def train_model(
     y_pred = model.predict(x_val)
     metrics = _evaluate(y_val, y_pred)
 
+    # 同一验证集上的评估扩展：naive 基线、分区域、按插值分层（R1/R3/R6）
+    frame_val = frame.iloc[split:]
+    baselines = _baseline_metrics(frame_val, chosen_lags)
+    metrics_real_monthly, validation_strata = _stratified_metrics(frame_val, y_pred)
+
     version = store.next_version(algorithm)
     meta = {
         "model_name": algorithm,
@@ -259,6 +349,11 @@ def train_model(
         "n_lags": chosen_lags,
         "features": cols,
         "metrics": metrics,
+        "metrics_real_monthly": metrics_real_monthly,
+        "validation_strata": validation_strata,
+        "baselines": baselines,
+        "beats_baseline": bool(metrics["mape"] < baselines["last_value"]["mape"]),
+        "per_region_metrics": _per_region_metrics(frame_val, y_pred),
         "training_samples": int(len(frame)),
         "validation_samples": int(len(x_val)),
         "city_codes": city_codes or [],

@@ -236,6 +236,9 @@ async def list_models(_admin: UserAccount = Depends(require_admin)):
             is_active=active is not None
             and active["model_name"] == meta["model_name"]
             and active["version"] == meta["version"],
+            # 旧版本 meta 无 baselines/beats_baseline 字段 → None（兼容）
+            beats_baseline=meta.get("beats_baseline"),
+            baseline_mape=((meta.get("baselines") or {}).get("last_value") or {}).get("mape"),
         )
         for meta in store.list_all()
     ]

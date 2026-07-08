@@ -1,6 +1,8 @@
 """预测 API 端到端测试（真实库数据训练 + 推理落库，训练走后台任务）。"""
 
 import asyncio
+import json
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -179,6 +181,9 @@ class TestModelSwitch:
         models = resp.json()
         assert {m["model_name"] for m in models} == {"random_forest", "xgboost"}
         assert all(not m["is_active"] for m in models)
+        # 新训模型透出基线对比字段（train-eval R5）
+        assert all(m["beats_baseline"] is not None for m in models)
+        assert all(m["baseline_mape"] is not None for m in models)
 
         # 切换到 xgboost 后预测端点随之切换
         resp = await client.put(
@@ -237,6 +242,38 @@ class TestModelSwitch:
     async def test_models_requires_admin(self, client, auth_headers):
         resp = await client.get("/api/v1/admin/predict/models", headers=auth_headers)
         assert resp.status_code == 403
+
+    async def test_list_models_old_meta_compat(self, client, admin_headers, trained_model):
+        """旧版本 meta（无 baselines 等新字段）list 全链路不报错，新字段为 None。"""
+        import shutil
+
+        model_dir = Path(settings.ml_model_dir) / "random_forest"
+        old_pkl = model_dir / "v9.0.pkl"
+        old_meta_path = model_dir / "v9.0_meta.json"
+        shutil.copyfile(model_dir / f"{trained_model['model_version']}.pkl", old_pkl)
+        old_meta_path.write_text(
+            json.dumps(
+                {
+                    "model_name": "random_forest",
+                    "version": "v9.0",
+                    "trained_at": "2026-01-01T00:00:00+00:00",
+                    "n_lags": 12,
+                    "metrics": {"mae": 100.0, "rmse": 150.0, "mape": 1.5, "r2": 0.9},
+                    "training_samples": 100,
+                }
+            ),
+            encoding="utf-8",
+        )
+        try:
+            resp = await client.get("/api/v1/admin/predict/models", headers=admin_headers)
+            assert resp.status_code == 200
+            legacy = next(m for m in resp.json() if m["version"] == "v9.0")
+            assert legacy["beats_baseline"] is None
+            assert legacy["baseline_mape"] is None
+        finally:
+            # 清理伪造版本，避免影响 next_version / 版本列表相关用例
+            old_pkl.unlink()
+            old_meta_path.unlink()
 
 
 class TestPredict:

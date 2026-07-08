@@ -63,6 +63,7 @@ Real contracts from the multi-source collection work (2026-07, updated after sou
 - The dataset builder classifies sources via `SOURCE_META` granularity/basis only; hardcoding source-name lists in `app/ml/` is forbidden (unregistered sources fall back to monthly/listing defaults).
 - **Listing→transaction calibration is a per-year ratio curve** (estimated from overlapping (region, month) pairs, median per year; nearest-year outside the overlap range). A single global coefficient is wrong — Beijing's overlap ratio drifts 0.79→1.09 across 2010–2017. The curve used at training time is stored in the model's `meta["dataset"]["ratio_curve"]`; inference-side series construction must reuse that stored curve, never re-estimate.
 - Annual-interpolated samples carry `is_annual_interp=1` and sample weight `ANNUAL_SAMPLE_WEIGHT` (0.3); real monthly points always win over annual-interpolated values for the same (region, month).
+- **Model meta is append-only** (old pickles must keep loading/predicting): new meta fields get optional Pydantic fields (`None` default) in `ModelVersionOut`, and readers use chained `.get`. Since ml-train-eval, meta carries `baselines` (last_value/seasonal naive), `beats_baseline`, `per_region_metrics`, and stratified `metrics_real_monthly` — **quote `metrics_real_monthly`, not the headline `metrics`, when judging a model trained on annual-expanded data**: the full validation set is dominated by smoothed interpolated samples (e.g. 0.25% vs the honest 2.71% MAPE).
 
 ---
 

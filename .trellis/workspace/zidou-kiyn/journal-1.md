@@ -40,3 +40,11 @@
 - 交付：app_setting KV 表（003 迁移）+ GET/PUT/test 代理端点（密码脱敏、URL 缺省=仅改开关）+ CrawlerHttpClient 构造时自动读设置（geo/DataV 保持直连）+ 数据管理页代理卡片。
 - 实测结论：用户自建 resin 代理（美国出口）本身可用但 creprice 拒境外 IP（TLS 断连）→ 已存库未启用；采集恢复需用户自配 iproyal 国内代理（密钥用户自持）。
 - 教训：测试 fixture 若清理与真实配置同 key 的数据,必须暂存恢复而非直接删除（第一版 teardown 清掉了刚保存的真实配置）。
+
+## 2026-07-08 · 07-08-creprice-first 完成（源隔离展示 + 训练白名单清理）
+
+- **源隔离展示（07-08-source-scoped-views）**：读取层从跨源合并改单源直读——删 `select_merged_snapshots`/`priority_case`，价格/分析端点加 `source` 查询参数（缺省 creprice，非登记源 422），新增 `select_snapshots_for_source`；新增 `GET /prices/index/trend`（NBS 指数独立路径）。前端建全局 source store（Pinia+localStorage）、顶栏切换器、五视图按源重拉、NBS 指数曲线（IndexTrendLine）、rank/compare/map/dashboard「指数源不适用」、预测入口仅 creprice 可见。
+- **训练白名单清理（07-08-training-whitelist-cleanup）**：`TRAINING_SOURCES=("creprice",)` + `training_rows_only` 加在**装载入口**（非构建器纯函数，故 test_dataset 多源单测零改动、保留路径可逆）；预测 API 无活跃模型改 `NO_ACTIVE_MODEL`，PredictView 显式空窗态；质量报告 `model_freshness` 无模型降级 unknown。
+- **破坏性清理**（本地状态、gitignore、不可逆，父任务 grilling 锁定授权）：清空 prediction 表（6→0）、删 `backend/models/` 全部模型 + active.json + 遗留 `models.bak-governance/`；空窗期至 full-data-crawl 完成后重训 v1.8。
+- **覆盖塌缩（有意为之）**：年度城市不再可预测（无 creprice→404）、混合城市仅 monthly；据此改写 2 个既有预测覆盖测试。
+- 验证：后端 397 passed（live 网络测试 deselect，缺国内 IP 既有失败）、前端 build、浏览器实测（泉州 creprice 仅 2025-07 起 vs 58 年度 2011-2024、切换器刷新持久化、NBS 指数曲线、预测入口按源显隐、空窗 404+NO_ACTIVE_MODEL、报告 unknown 降级）。

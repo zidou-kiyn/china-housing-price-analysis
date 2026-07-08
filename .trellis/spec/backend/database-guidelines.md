@@ -46,13 +46,16 @@ Questions to answer:
 
 ## PriceSnapshot Source & Granularity Conventions
 
-Real contracts from the multi-source collection work (2026-07). Code: `app/pipeline/loaders.py`, `app/services/nationwide_import.py`, `app/collector/sources/listing_annual.py`.
+Real contracts from the multi-source collection work (2026-07, updated after source-isolation). Code: `app/pipeline/loaders.py`, `app/core/source_policy.py`, `app/services/price_select.py`, `app/services/nationwide_import.py`.
 
-- `price_snapshot` upserts on constraint `uq_price_snapshot_region_month` (`region_type, region_id, year_month`). **Last write wins**, and the `source` column records the last writer. Re-running any import is idempotent.
-- Registered source tags so far: `creprice` (monthly listing/appraised), `kaggle_lianjia` (Beijing monthly transaction), `listing_annual_58` / `listing_annual_anjuke` (nationwide annual listing average).
-- **Annual data convention**: annual values land on `year_month = "YYYY-12"`, `supply_price` = listing average (¥/㎡), `sample_count = NULL`. Frontend labels these via `TrendPoint.source` (see `TrendLine.vue` SOURCE_LABELS) because listing prices run higher than transaction prices — never mix the two silently.
+- **Source-independent storage** (migration 005): unique constraint is `uq_price_snapshot_region_month_source` (`region_type, region_id, year_month, source`), `source` is NOT NULL. Each source keeps its own full series; writes NEVER overwrite another source's rows. Re-running any import stays idempotent within its own source. (History: the old region+month key let the 58 annual import silently overwrite Beijing's kaggle transaction Decembers — that class of bug is now structurally impossible.)
+- **Merge happens at READ time, in one place**: `app/services/price_select.py::select_merged_snapshots` picks one row per (region, month) via `app/core/source_policy.py::SOURCE_PRIORITY` (monthly sources beat annual listing: creprice > kaggle_lianjia > listing_annual_58 > listing_annual_anjuke). All single-value readers (default `/prices/trend`, analytics rank/compare/mapheat, ML `_load_snapshot_rows`) MUST go through it — a naive `dict[year_month] = snap` grouping silently picks a random source.
+- **New data sources MUST register in `SOURCE_PRIORITY` and `SOURCE_META`** (granularity monthly|annual, basis listing|transaction), or they fall to priority 9 and get default 口径 metadata.
+- Per-source display: `GET /prices/trend/series` returns one series per source; the frontend draws monthly sources as solid lines and annual as dashed+symbols and never connects across sources (`TrendLine.vue` split mode).
+- **Annual data convention**: annual values land on `year_month = "YYYY-12"`, `supply_price` = listing average (¥/㎡), `sample_count = NULL`. Listing prices run higher than transaction prices — annual-sourced values must carry a「年度·挂牌」label wherever shown (rank tag, compare tooltip, trend legend).
 - Name-keyed bulk imports (58/anjuke CSVs) match `city.name` exactly and **skip unmatched names** (county-level cities, leagues, HK) instead of inserting new city rows; skipped names must be returned/logged.
 - After any bulk snapshot write, invalidate API caches via `app/core/cache.py::invalidate_api_caches`. New `api:*` cache keys MUST be added to `_api_cache_patterns` there, or stale data will be served for up to the TTL.
+- Tests that write real cities into the dev DB must register their city codes in `TEST_CITY_CODES` (`tests/pipeline/test_loaders.py`) — unregistered fixtures leak into the frontend rank list (happened twice: 快照市, 共存市).
 
 ---
 

@@ -49,9 +49,9 @@ async def select_merged_snapshots(session, region_type, region_ids=None) -> list
 ## 5. API
 
 - `GET /prices/trend`：形状不变（list[TrendPoint]），改为合并选择后的结果 —— 兼容 Dashboard/Predict/Map/usePrice。
-- `GET /prices/trend?split=true`：新增，返回 `list[TrendSeries]`：
+- `GET /prices/trend/series`：新增独立端点，返回 `list[TrendSeries]`：
   `TrendSeries{source, granularity, basis, points: list[TrendPoint]}`（按 SOURCE_PRIORITY 排序）。
-  缓存 key 分开：`api:trend:{rt}:{id}` 与 `api:trend:split:{rt}:{id}`（已被 `api:trend:*` 失效模式覆盖）。
+  缓存 key 分开：`api:trend:{rt}:{id}` 与 `api:trend:series:{rt}:{id}`（已被 `api:trend:*` 失效模式覆盖）。
 - `analytics` rank/compare 条目：已含/补充 `source` 字段，前端据此打口径标签。
 
 ## 6. 前端

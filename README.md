@@ -160,20 +160,30 @@ graph TB
 git clone https://github.com/zidou-kiyn/china-housing-price-analysis.git
 cd china-housing-price-analysis
 
-# 2. 启动所有服务（开发模式，自动叠加 docker-compose.override.yml）
+# 2. 创建环境变量文件
+cp .env.example .env
+
+# 3. 启动所有服务（开发模式，自动叠加 docker-compose.override.yml）
 docker compose up -d --build
 
-# 3. 等待服务就绪（首次启动会自动执行数据库迁移并导入城市种子数据）
+# 4. 等待服务就绪（首次启动会自动执行数据库迁移并导入城市种子数据）
 docker compose logs -f backend
 # 看到 "Uvicorn running on http://0.0.0.0:8000" 即可 Ctrl+C
 
-# 4. 创建管理员账号
+# 5. 创建管理员账号
 docker compose exec backend uv run --no-sync python scripts/create_admin.py admin admin@example.com your_password
 
-# 5. 访问系统
+# 6. 访问系统
 # 前端：http://localhost:5173
 # API 文档：http://localhost:5173/api/docs（通过 Vite 代理）
 ```
+
+> **国内服务器加速**：后端构建需下载 scipy、xgboost 等大型包，默认 PyPI 源可能很慢。传入国内镜像即可加速：
+>
+> ```bash
+> docker compose build --build-arg UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple backend
+> docker compose up -d
+> ```
 
 ### 环境变量
 

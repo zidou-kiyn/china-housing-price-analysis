@@ -160,20 +160,30 @@ graph TB
 git clone https://github.com/zidou-kiyn/china-housing-price-analysis.git
 cd china-housing-price-analysis
 
-# 2. Start all services (dev mode, auto-merges docker-compose.override.yml)
+# 2. Create environment config
+cp .env.example .env
+
+# 3. Start all services (dev mode, auto-merges docker-compose.override.yml)
 docker compose up -d --build
 
-# 3. Wait for services to be ready (first run auto-migrates DB and seeds city data)
+# 4. Wait for services to be ready (first run auto-migrates DB and seeds city data)
 docker compose logs -f backend
 # Press Ctrl+C once you see "Uvicorn running on http://0.0.0.0:8000"
 
-# 4. Create an admin account
+# 5. Create an admin account
 docker compose exec backend uv run --no-sync python scripts/create_admin.py admin admin@example.com your_password
 
-# 5. Open the app
+# 6. Open the app
 # Frontend: http://localhost:5173
 # API docs: http://localhost:5173/api/docs (proxied through Vite)
 ```
+
+> **China mainland users**: Backend build downloads large packages (scipy, xgboost). Speed up with a local PyPI mirror:
+>
+> ```bash
+> docker compose build --build-arg UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple backend
+> docker compose up -d
+> ```
 
 ### Environment Variables
 

@@ -3,7 +3,7 @@
   "name": "source-framework",
   "title": "多源框架泛化与数据源切换",
   "description": "解耦硬编码 SOURCE_NAME，加源能力声明与按能力自适应编排，加可用源列表/当前源 API 与前端切换卡片",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "zidou-kiyn",
   "assignee": "zidou-kiyn",
   "createdAt": "2026-07-08",
-  "completedAt": null,
+  "completedAt": "2026-07-08",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": "07-08-multi-source-collection",
   "relatedFiles": [],
-  "notes": "",
+  "notes": "按完成关闭（2026-07-08）：交付物（SourceRegistry/BaseSource capabilities/price_unit、runner 能力编排、price_snapshot.source 列、管理端切源卡片 GET+PUT /admin/collect/sources）已全部落地 main；implement.md 清单未逐项勾选但功能可验证。",
   "meta": {}
 }

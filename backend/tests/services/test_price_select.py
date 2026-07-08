@@ -8,7 +8,7 @@ from app.core.database import async_session_factory
 from app.models.city import City
 from app.models.price_snapshot import PriceSnapshot
 from app.pipeline.loaders import upsert_price_snapshots
-from app.services.price_select import select_merged_snapshots
+from app.services.price_select import select_merged_snapshots, select_source_snapshots
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -53,6 +53,22 @@ async def test_merged_prefers_monthly_source(multi_source_city):
         ("2020-12", 11000, "listing_annual_58"),  # 仅年度源 → 用年度值
         ("2024-12", 9000, "creprice"),  # 双源共存 → 月度源优先
         ("2025-01", 9100, "creprice"),
+    ]
+
+
+async def test_source_snapshots_grouped_not_merged(multi_source_city):
+    """分源取数：各源完整序列独立返回，同月双源共存不合并。"""
+    async with async_session_factory() as s:
+        by_source = await select_source_snapshots(s, "city", [multi_source_city])
+
+    assert set(by_source) == {"creprice", "listing_annual_58"}
+    assert [(x.year_month, x.supply_price) for x in by_source["creprice"]] == [
+        ("2024-12", 9000),
+        ("2025-01", 9100),
+    ]
+    assert [(x.year_month, x.supply_price) for x in by_source["listing_annual_58"]] == [
+        ("2020-12", 11000),
+        ("2024-12", 13000),
     ]
 
 

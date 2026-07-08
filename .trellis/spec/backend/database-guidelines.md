@@ -57,6 +57,13 @@ Real contracts from the multi-source collection work (2026-07, updated after sou
 - After any bulk snapshot write, invalidate API caches via `app/core/cache.py::invalidate_api_caches`. New `api:*` cache keys MUST be added to `_api_cache_patterns` there, or stale data will be served for up to the TTL.
 - Tests that write real cities into the dev DB must register their city codes in `TEST_CITY_CODES` (`tests/pipeline/test_loaders.py`) — unregistered fixtures leak into the frontend rank list (happened twice: 快照市, 共存市).
 
+### ML training-data path (2026-07, ml-dataset-builder)
+
+- **ML training reads are per-source, NOT merged**: training goes through `app/services/price_select.py::select_source_snapshots` → `app/ml/dataset.py::build_multi_source_series`. Do NOT feed `select_merged_snapshots` output into training — merged series splice listing/transaction/annual points into one sequence with no口径 features.
+- The dataset builder classifies sources via `SOURCE_META` granularity/basis only; hardcoding source-name lists in `app/ml/` is forbidden (unregistered sources fall back to monthly/listing defaults).
+- **Listing→transaction calibration is a per-year ratio curve** (estimated from overlapping (region, month) pairs, median per year; nearest-year outside the overlap range). A single global coefficient is wrong — Beijing's overlap ratio drifts 0.79→1.09 across 2010–2017. The curve used at training time is stored in the model's `meta["dataset"]["ratio_curve"]`; inference-side series construction must reuse that stored curve, never re-estimate.
+- Annual-interpolated samples carry `is_annual_interp=1` and sample weight `ANNUAL_SAMPLE_WEIGHT` (0.3); real monthly points always win over annual-interpolated values for the same (region, month).
+
 ---
 
 ## Common Mistakes

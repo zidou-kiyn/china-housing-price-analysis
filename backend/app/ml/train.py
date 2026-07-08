@@ -144,13 +144,17 @@ def _mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return float(np.mean(np.abs((y_true[nonzero] - y_pred[nonzero]) / y_true[nonzero])) * 100)
 
 
-def _fit_random_forest(x_train: np.ndarray, y_train: np.ndarray):
+def _fit_random_forest(
+    x_train: np.ndarray, y_train: np.ndarray, w_train: np.ndarray | None = None
+):
     model = RandomForestRegressor(**RF_PARAMS)
-    model.fit(x_train, y_train)
+    model.fit(x_train, y_train, sample_weight=w_train)
     return model, None
 
 
-def _fit_xgboost(x_train: np.ndarray, y_train: np.ndarray):
+def _fit_xgboost(
+    x_train: np.ndarray, y_train: np.ndarray, w_train: np.ndarray | None = None
+):
     """小网格 × 时序 CV 选参；样本不足时用默认参数（cv=None）。"""
     params = dict(XGB_DEFAULT_PARAMS)
     cv_info = None
@@ -167,7 +171,11 @@ def _fit_xgboost(x_train: np.ndarray, y_train: np.ndarray):
             fold_mapes = []
             for train_idx, val_idx in splitter.split(x_train):
                 m = XGBRegressor(**candidate)
-                m.fit(x_train[train_idx], y_train[train_idx])
+                m.fit(
+                    x_train[train_idx],
+                    y_train[train_idx],
+                    sample_weight=None if w_train is None else w_train[train_idx],
+                )
                 fold_mapes.append(_mape(y_train[val_idx], m.predict(x_train[val_idx])))
             mean_mape = float(np.mean(fold_mapes))
             if best is None or mean_mape < best[0]:
@@ -180,7 +188,7 @@ def _fit_xgboost(x_train: np.ndarray, y_train: np.ndarray):
             "mean_mape": round(best[0], 2),
         }
     model = XGBRegressor(**params)
-    model.fit(x_train, y_train)
+    model.fit(x_train, y_train, sample_weight=w_train)
     return model, cv_info
 
 
@@ -196,11 +204,13 @@ def train_model(
     store: ModelStore,
     n_lags: int | None = None,
     city_codes: list[str] | None = None,
+    dataset_meta: dict | None = None,
 ) -> dict:
     """训练指定算法并版本化保存，返回 meta。
 
     n_lags 未指定时按 12→6→3 自适应选择首个样本数 ≥ MIN_SAMPLES 的窗口。
     数据不足以构成任何窗口时抛 ValueError。
+    dataset_meta（多源构建器指纹）原样并入模型 meta["dataset"] 供追溯。
     """
     if algorithm not in ALGORITHMS:
         raise ValueError(f"未知模型算法: {algorithm}")
@@ -224,6 +234,11 @@ def train_model(
     cols = feature_columns(chosen_lags)
     x = frame[cols].to_numpy()
     y = frame["y"].to_numpy()
+    w = (
+        frame["weight"].to_numpy(dtype=float)
+        if "weight" in frame.columns
+        else np.ones(len(frame))
+    )
 
     # 时序切分：后 20% 验证（已按 year_month 排序）
     split = max(int(len(frame) * 0.8), 1)
@@ -232,7 +247,7 @@ def train_model(
     x_train, x_val = x[:split], x[split:]
     y_train, y_val = y[:split], y[split:]
 
-    model, cv_info = ALGORITHMS[algorithm](x_train, y_train)
+    model, cv_info = ALGORITHMS[algorithm](x_train, y_train, w[:split])
     y_pred = model.predict(x_val)
     metrics = _evaluate(y_val, y_pred)
 
@@ -250,6 +265,7 @@ def train_model(
         "ci_strategy": "per_tree" if algorithm == "random_forest" else "residual",
         "resid_std": round(float(np.std(y_val - y_pred)), 2),
         "cv": cv_info,
+        "dataset": dataset_meta,
     }
     store.save(algorithm, version, model, meta)
     return meta
@@ -260,5 +276,6 @@ def train_random_forest(
     store: ModelStore,
     n_lags: int | None = None,
     city_codes: list[str] | None = None,
+    dataset_meta: dict | None = None,
 ) -> dict:
-    return train_model("random_forest", series_list, store, n_lags, city_codes)
+    return train_model("random_forest", series_list, store, n_lags, city_codes, dataset_meta)

@@ -39,6 +39,14 @@ DELETE FROM prediction
   `annual_interp` → 「年度挂牌推算」warning 色；`mixed` → 「混合口径」info 色，
   tooltip 说明区间已放大/数据构成。复用走势图口径标签的文案风格。
 
+## 来自 dataset-builder 质检的强约束
+
+- 预测侧构造序列时**必须复用模型 meta["dataset"]["ratio_curve"]**，禁止重估
+  （否则训练/推理校准不一致）。
+- basis_enc 训练/推理偏差：训练时北京 series 级 basis=transaction，预测路径改走
+  构建器后须保证同一区域推理时 basis 与训练一致（由构建器统一产出即自然满足，
+  勿在预测层另行默认 listing）。
+
 ## 权衡
 
 - 惩罚系数 1.5 是保守初值（年度插值序列自相关高、真实波动被抹平，区间必然

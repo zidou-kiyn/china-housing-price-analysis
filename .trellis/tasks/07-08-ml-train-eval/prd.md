@@ -29,8 +29,16 @@
 - [ ] 单测覆盖：基线计算、RF 网格选参路径、分区域指标、meta 兼容
 - [ ] 全量测试通过
 
+- R6 分层评估（dataset-builder 质检遗留）：验证集指标须按 `is_annual_interp`
+  分层报告——`metrics`（全量）之外新增 `metrics_real_monthly`（仅真实月度样本，
+  口径更诚实；年度插值样本被平滑、指标必然偏乐观，全库冒烟 MAPE 0.38% 即此因）。
+  meta 同时记录验证集两层样本数。
+
 ## Notes
 
 - 基线不落盘为"模型"，只是评估参照；若模型 MAPE 高于 last_value 基线，训练
   结果照常保存但 meta 标记 `beats_baseline: false`（管理页可显示，不阻断）。
 - 依赖 ml-dataset-builder 的 DatasetMeta（R4）；若先行实施，R4 留待接线。
+- 年度插值样本权重总量 vs 真实月度约 58:1（0.3×31072 vs 1.0×160），
+  `ANNUAL_SAMPLE_WEIGHT=0.3` 是否够低，用 R6 的真实月度分层指标定夺，
+  必要时在本任务内调整常量并记录对比。

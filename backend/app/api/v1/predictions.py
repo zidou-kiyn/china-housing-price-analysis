@@ -11,6 +11,7 @@ from app.api.deps import get_session, require_admin, require_user
 from app.core.config import settings
 from app.core.database import async_session_factory
 from app.core.errors import ApiError
+from app.ml.dataset import build_multi_source_series
 from app.ml.features import build_region_series
 from app.ml.predict import rolling_predict
 from app.ml.train import ModelStore
@@ -28,7 +29,7 @@ from app.schemas.predict import (
     TrainRequest,
 )
 from app.services import job_runner
-from app.services.price_select import select_merged_snapshots
+from app.services.price_select import select_merged_snapshots, select_source_snapshots
 
 router = APIRouter(tags=["predictions"])
 
@@ -40,7 +41,7 @@ def _store() -> ModelStore:
 async def _load_snapshot_rows(
     db: AsyncSession, region_type: str | None = None, region_ids: list[int] | None = None
 ) -> list[dict]:
-    # 合并选择：多源同月按优先级取一行，避免特征序列出现重复月份
+    # 合并选择：多源同月按优先级取一行，避免特征序列出现重复月份（预测取数用）
     snaps = await select_merged_snapshots(db, region_type, region_ids)
     return [
         {
@@ -51,6 +52,25 @@ async def _load_snapshot_rows(
         }
         for s in snaps
     ]
+
+
+async def _load_source_rows(
+    db: AsyncSession, region_type: str | None = None, region_ids: list[int] | None = None
+) -> dict[str, list[dict]]:
+    # 分源取数（不合并）：训练集构建器需要各源完整序列做口径校准与年度扩充
+    by_source = await select_source_snapshots(db, region_type, region_ids)
+    return {
+        source: [
+            {
+                "region_type": s.region_type,
+                "region_id": s.region_id,
+                "year_month": s.year_month,
+                "supply_price": s.supply_price,
+            }
+            for s in snaps
+        ]
+        for source, snaps in by_source.items()
+    }
 
 
 @router.get("/predict/{region_id}", response_model=PredictionResponse)
@@ -130,11 +150,17 @@ async def _run_train(
 ) -> None:
     """训练任务体：读数在独立 session，训练（同步 CPU 密集）放线程池避免阻塞事件循环。"""
     async with async_session_factory() as db:
-        rows = await _load_snapshot_rows(db, region_type, region_ids)
-    series_list = build_region_series(rows)
+        rows_by_source = await _load_source_rows(db, region_type, region_ids)
+    # 多源构建：口径校准 + 年度扩充 + 真实月度优先去重
+    series_list, dataset_meta = build_multi_source_series(rows_by_source)
 
     meta = await asyncio.to_thread(
-        run_training, model_name, series_list, _store(), city_codes=city_codes
+        run_training,
+        model_name,
+        series_list,
+        _store(),
+        city_codes=city_codes,
+        dataset_meta=dataset_meta.to_dict(),
     )
     await job_runner.report_progress(
         job_id,

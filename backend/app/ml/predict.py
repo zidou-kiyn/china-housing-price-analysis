@@ -36,12 +36,14 @@ def rolling_predict(
         region_id=region_series.region_id,
         months=list(region_series.months),
         prices=list(region_series.prices),
+        basis=region_series.basis,
     )
 
     points: list[PredictionPoint] = []
     for _ in range(months_ahead):
         target_month = shift_month(series.months[-1], 1)
-        x = build_inference_row(series, n_lags, target_month)
+        # 按训练时特征列切片：旧模型 meta.features 不含新列，天然兼容
+        x = build_inference_row(series, n_lags, target_month, meta.get("features"))
         if x is None:
             raise ValueError(f"历史数据不足模型窗口 {n_lags} 个月，无法预测")
 

@@ -40,3 +40,30 @@ async def select_merged_snapshots(
         stmt = stmt.where(PriceSnapshot.region_id.in_(region_ids))
     result = await session.execute(stmt)
     return list(result.scalars())
+
+
+async def select_source_snapshots(
+    session: AsyncSession,
+    region_type: str | None = None,
+    region_ids: list[int] | None = None,
+) -> dict[str, list[PriceSnapshot]]:
+    """按源分组返回全部快照行（不做同月合并），每源内按区域、月份升序。
+
+    供 ML 训练集构建器分源处理（口径校准/年度扩充需要各源完整序列，
+    单值合并会丢掉重叠期的双口径对）。
+    """
+    stmt = select(PriceSnapshot).order_by(
+        PriceSnapshot.source,
+        PriceSnapshot.region_type,
+        PriceSnapshot.region_id,
+        PriceSnapshot.year_month,
+    )
+    if region_type:
+        stmt = stmt.where(PriceSnapshot.region_type == region_type)
+    if region_ids:
+        stmt = stmt.where(PriceSnapshot.region_id.in_(region_ids))
+    result = await session.execute(stmt)
+    by_source: dict[str, list[PriceSnapshot]] = {}
+    for snap in result.scalars():
+        by_source.setdefault(snap.source, []).append(snap)
+    return by_source

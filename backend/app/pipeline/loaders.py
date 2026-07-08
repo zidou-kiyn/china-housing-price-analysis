@@ -73,9 +73,12 @@ async def upsert_price_snapshots(
     records: list[dict],
     region_type: str,
     region_id: int,
-    source: str | None = None,
+    source: str,
 ) -> int:
-    """批量 upsert 均价快照，返回入库行数。source 记录该行最后写入的数据源（溯源注记）。"""
+    """批量 upsert 均价快照，返回入库行数。
+
+    唯一键含 source：各源序列独立，重跑仅覆盖本源同月行，永不跨源覆盖。
+    """
     if not records:
         return 0
     rows = [
@@ -93,13 +96,12 @@ async def upsert_price_snapshots(
     ]
     stmt = insert(PriceSnapshot).values(rows)
     stmt = stmt.on_conflict_do_update(
-        constraint="uq_price_snapshot_region_month",
+        constraint="uq_price_snapshot_region_month_source",
         set_={
             "supply_price": stmt.excluded.supply_price,
             "attention_price": stmt.excluded.attention_price,
             "value_price": stmt.excluded.value_price,
             "sample_count": stmt.excluded.sample_count,
-            "source": stmt.excluded.source,
         },
     )
     result = await session.execute(stmt)

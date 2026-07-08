@@ -179,7 +179,7 @@ class TestUpsertPriceSnapshots:
             {"year_month": "2025-01", "supply_price": 9000, "attention_price": 8500, "value_price": 9200, "sample_count": 100},
             {"year_month": "2025-02", "supply_price": 9100, "attention_price": 8600, "value_price": 9300, "sample_count": 110},
         ]
-        count = await upsert_price_snapshots(session, records, "city", city_id)
+        count = await upsert_price_snapshots(session, records, "city", city_id, source="creprice")
         assert count == 2
 
     async def test_upsert_updates_price(self, session):
@@ -187,10 +187,10 @@ class TestUpsertPriceSnapshots:
         city_id = city_map["upd_snap_city"]
 
         records = [{"year_month": "2025-03", "supply_price": 8000}]
-        await upsert_price_snapshots(session, records, "city", city_id)
+        await upsert_price_snapshots(session, records, "city", city_id, source="creprice")
 
         updated = [{"year_month": "2025-03", "supply_price": 9999}]
-        await upsert_price_snapshots(session, updated, "city", city_id)
+        await upsert_price_snapshots(session, updated, "city", city_id, source="creprice")
 
         result = await session.execute(
             select(PriceSnapshot).where(
@@ -206,8 +206,8 @@ class TestUpsertPriceSnapshots:
         city_id = city_map["idem_city"]
 
         records = [{"year_month": "2025-04", "supply_price": 7000}]
-        await upsert_price_snapshots(session, records, "city", city_id)
-        await upsert_price_snapshots(session, records, "city", city_id)
+        await upsert_price_snapshots(session, records, "city", city_id, source="creprice")
+        await upsert_price_snapshots(session, records, "city", city_id, source="creprice")
 
         result = await session.execute(
             select(func.count()).select_from(PriceSnapshot).where(
@@ -218,7 +218,34 @@ class TestUpsertPriceSnapshots:
         assert result.scalar() == 1
 
     async def test_empty_records(self, session):
-        assert await upsert_price_snapshots(session, [], "city", 999) == 0
+        assert await upsert_price_snapshots(session, [], "city", 999, source="creprice") == 0
+
+    async def test_sources_coexist_same_month(self, session):
+        """不同源写同城同月：两行共存、互不覆盖（源独立存储）。"""
+        city_map = await upsert_cities(session, [CityInfo(name="共存市", code="coex_city")])
+        city_id = city_map["coex_city"]
+
+        await upsert_price_snapshots(
+            session, [{"year_month": "2024-12", "supply_price": 9000}],
+            "city", city_id, source="creprice",
+        )
+        await upsert_price_snapshots(
+            session, [{"year_month": "2024-12", "supply_price": 13000}],
+            "city", city_id, source="listing_annual_58",
+        )
+
+        result = await session.execute(
+            select(PriceSnapshot).where(
+                PriceSnapshot.region_type == "city",
+                PriceSnapshot.region_id == city_id,
+                PriceSnapshot.year_month == "2024-12",
+            ).order_by(PriceSnapshot.source)
+        )
+        rows = list(result.scalars())
+        assert [(r.source, r.supply_price) for r in rows] == [
+            ("creprice", 9000),
+            ("listing_annual_58", 13000),
+        ]
 
 
 # ── upsert_price_distributions ─────────────────────────────────────

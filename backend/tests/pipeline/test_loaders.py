@@ -30,6 +30,7 @@ pytestmark = [pytest.mark.slow, pytest.mark.asyncio(loop_scope="module")]
 TEST_CITY_CODES = [
     "test_a", "test_b", "test_upsert_city", "dist_test_city", "upd_dist_city",
     "snap_city", "upd_snap_city", "idem_city", "dist_price_city", "upd_dist_price_city",
+    "coex_city",
 ]
 TEST_JOB_SOURCE = "test_source"
 

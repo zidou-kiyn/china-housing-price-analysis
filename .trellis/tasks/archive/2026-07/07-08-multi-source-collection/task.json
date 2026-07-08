@@ -3,7 +3,7 @@
   "name": "multi-source-collection",
   "title": "多源采集与数据源切换",
   "description": "新增可靠采集源（政府/中介/Kaggle），实现多源混合与前端数据源切换，降低对 creprice 单源的依赖",
-  "status": "planning",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "zidou-kiyn",
   "assignee": "zidou-kiyn",
   "createdAt": "2026-07-08",
-  "completedAt": null,
+  "completedAt": "2026-07-08",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -28,6 +28,6 @@
   ],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "父任务收尾（2026-07-08，creprice-first 方针）：nationwide-annual、source-isolation 完成；source-framework 按完成关闭；kaggle-import/govstats-source/agency-scrape 取消（时间零重叠/住宅 IP 死锁/训练不再需要）。多源数据保留为展示对比素材，训练只用 creprice——后续见 07-08-creprice-first。",
   "meta": {}
 }

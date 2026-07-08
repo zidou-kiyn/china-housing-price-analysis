@@ -156,11 +156,19 @@ class _StubRunner:
         self.fail = fail
         self.calls: list[str] = []
 
-    async def run(self, source_name: str, code: str) -> dict:
+    async def run(self, source_name: str, code: str, **kwargs) -> dict:
         self.calls.append(code)
         if code in self.fail:
             raise RuntimeError("ssl eof (simulated rate limit)")
         return {"snapshots": 3, "distributions": 1, "logs": 2, "errors": []}
+
+
+@pytest.fixture
+def _no_prefetch(monkeypatch):
+    async def fake_prefetch(source_name):
+        return {}
+
+    monkeypatch.setattr(collect_tasks, "_prefetch_city_map", fake_prefetch)
 
 
 @pytest.fixture
@@ -183,7 +191,7 @@ def _no_pause(monkeypatch):
 
 
 class TestRunCollectCircuitBreaker:
-    async def test_breaks_after_consecutive_failures(self, _no_progress, _no_pause):
+    async def test_breaks_after_consecutive_failures(self, _no_prefetch, _no_progress, _no_pause):
         codes = ["c1", "c2", "c3", "c4", "c5"]
         runner = _StubRunner(fail=set(codes))
         summary = await collect_tasks.run_collect(
@@ -193,7 +201,7 @@ class TestRunCollectCircuitBreaker:
         assert summary["circuit_broken"] is True
         assert summary["skipped"] == ["c4", "c5"]
 
-    async def test_success_resets_failure_streak(self, _no_progress, _no_pause):
+    async def test_success_resets_failure_streak(self, _no_prefetch, _no_progress, _no_pause):
         codes = ["f1", "f2", "s1", "f3", "f4", "f5", "never"]
         runner = _StubRunner(fail={"f1", "f2", "f3", "f4", "f5"})
         summary = await collect_tasks.run_collect(
@@ -204,7 +212,7 @@ class TestRunCollectCircuitBreaker:
         assert summary["circuit_broken"] is True
         assert summary["skipped"] == ["never"]
 
-    async def test_manual_path_never_breaks(self, _no_progress, _no_pause):
+    async def test_manual_path_never_breaks(self, _no_prefetch, _no_progress, _no_pause):
         codes = ["c1", "c2", "c3", "c4", "c5"]
         runner = _StubRunner(fail=set(codes))
         summary = await collect_tasks.run_collect(1, codes, "creprice", runner=runner)
@@ -213,7 +221,7 @@ class TestRunCollectCircuitBreaker:
         assert summary["skipped"] == []
 
     async def test_inter_city_pause_between_cities(
-        self, _no_progress, _no_pause
+        self, _no_prefetch, _no_progress, _no_pause
     ):
         codes = ["c1", "c2", "c3"]
         runner = _StubRunner(fail=set())
@@ -223,7 +231,7 @@ class TestRunCollectCircuitBreaker:
         # 城市之间 sleep（n-1 次），且使用配置的区间
         assert _no_pause == [(10.0, 20.0), (10.0, 20.0)]
 
-    async def test_manual_path_no_pause(self, _no_progress, _no_pause):
+    async def test_manual_path_no_pause(self, _no_prefetch, _no_progress, _no_pause):
         runner = _StubRunner(fail=set())
         await collect_tasks.run_collect(1, ["c1", "c2"], "creprice", runner=runner)
         assert _no_pause == []

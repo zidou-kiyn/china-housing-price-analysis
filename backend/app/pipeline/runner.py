@@ -36,8 +36,17 @@ class PipelineRunner:
         self.session_factory = session_factory
         self.redis = redis if redis is not None else redis_client
 
-    async def run(self, source_name: str, city_code: str) -> dict:
-        """端到端执行单城市采集入库，返回统计摘要。"""
+    async def run(
+        self,
+        source_name: str,
+        city_code: str,
+        *,
+        city_map: dict[str, int] | None = None,
+    ) -> dict:
+        """端到端执行单城市采集入库，返回统计摘要。
+
+        city_map 已传入时跳过 fetch_cities（避免并发场景重复请求）。
+        """
         source = SourceRegistry.get(source_name)
         stats = {
             "snapshots": 0,
@@ -68,7 +77,9 @@ class PipelineRunner:
 
                 try:
                     city_map, dist_map, dist_list = await self._load_dimensions(
-                        session, source, city_code, job.id, with_districts=supports_dist
+                        session, source, city_code, job.id,
+                        with_districts=supports_dist,
+                        prefetched_city_map=city_map,
                     )
                     stats["logs"] += 1
 
@@ -137,21 +148,27 @@ class PipelineRunner:
         city_code: str,
         job_id: int,
         with_districts: bool = True,
+        prefetched_city_map: dict[str, int] | None = None,
     ):
         """获取城市（可选区县）列表并 upsert，返回 (city_map, dist_map, dist_list)。
 
         with_districts=False（源不支持区县）时跳过 fetch_districts，返回空区县。
+        prefetched_city_map 已传入时跳过 fetch_cities + upsert_cities（并发模式由调用方统一完成）。
         """
         t0 = time.perf_counter()
         base = getattr(source, "base_url", "") or source.source_name
         try:
-            cities = await asyncio.to_thread(source.fetch_cities)
+            if prefetched_city_map is not None:
+                city_map = prefetched_city_map
+            else:
+                cities = await asyncio.to_thread(source.fetch_cities)
+                city_map = await upsert_cities(session, cities)
+
             if with_districts:
                 city_districts = await asyncio.to_thread(source.fetch_districts, city_code)
             else:
                 city_districts = []
 
-            city_map = await upsert_cities(session, cities)
             dist_map = await upsert_districts(session, city_districts, city_map)
 
             elapsed = int((time.perf_counter() - t0) * 1000)
@@ -161,7 +178,7 @@ class PipelineRunner:
                 url=f"{base}/city/{city_code}.html",
                 success=True,
                 status_code=200,
-                record_count=len(cities) + len(city_districts),
+                record_count=(0 if prefetched_city_map is not None else len(cities)) + len(city_districts),
                 elapsed_ms=elapsed,
             )
             return city_map, dist_map, city_districts

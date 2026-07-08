@@ -14,7 +14,7 @@ from app.models.city import City
 from app.models.price_snapshot import PriceSnapshot
 from app.models.price_index_snapshot import PriceIndexSnapshot
 from app.pipeline.runner import PipelineRunner
-from app.services import index_import, nationwide_import
+from app.services import collect_tasks, index_import, nationwide_import
 
 pytestmark = [pytest.mark.slow, pytest.mark.asyncio(loop_scope="session")]
 
@@ -98,10 +98,17 @@ class TestCityCoverage:
 
 
 class TestSubmitCollect:
+    @pytest.fixture(autouse=True)
+    def _mock_prefetch(self, monkeypatch):
+        async def fake_prefetch(source_name):
+            return {}
+
+        monkeypatch.setattr(collect_tasks, "_prefetch_city_map", fake_prefetch)
+
     async def test_collect_job_success_flow(
         self, client, admin_headers, monkeypatch, fake_cities
     ):
-        async def fake_run(self, source_name, city_code):
+        async def fake_run(self, source_name, city_code, **kwargs):
             await asyncio.sleep(0.01)
             return {"snapshots": 5, "distributions": 2, "logs": 3, "errors": []}
 
@@ -124,7 +131,7 @@ class TestSubmitCollect:
     async def test_partial_failure_still_success(
         self, client, admin_headers, monkeypatch, fake_cities
     ):
-        async def flaky_run(self, source_name, city_code):
+        async def flaky_run(self, source_name, city_code, **kwargs):
             if city_code == "zztest2":
                 raise RuntimeError("城市页 404")
             return {"snapshots": 1, "distributions": 0, "logs": 1, "errors": []}
@@ -143,7 +150,7 @@ class TestSubmitCollect:
     async def test_all_failed_marks_job_failed(
         self, client, admin_headers, monkeypatch, fake_cities
     ):
-        async def broken_run(self, source_name, city_code):
+        async def broken_run(self, source_name, city_code, **kwargs):
             raise RuntimeError("网络中断")
 
         monkeypatch.setattr(PipelineRunner, "run", broken_run)
@@ -160,7 +167,7 @@ class TestSubmitCollect:
     ):
         release = asyncio.Event()
 
-        async def slow_run(self, source_name, city_code):
+        async def slow_run(self, source_name, city_code, **kwargs):
             await release.wait()
             return {"snapshots": 0, "distributions": 0, "logs": 0, "errors": []}
 

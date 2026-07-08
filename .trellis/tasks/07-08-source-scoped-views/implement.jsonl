@@ -1,1 +1,4 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "§ML training-data path 记录读取层多源合并/单源约定，本任务删合并须同步该节"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "source 非法 422、ApiError vs HTTPException 用法"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Pinia store + localStorage 持久化约定（新建全局 source store 参照）"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Element Plus 组件与视图数据加载惯例（切换器 + 各视图重拉）"}

@@ -9,11 +9,16 @@ from app.api.v1 import admin_settings
 from app.collector.http_client import CrawlerHttpClient
 from app.core.database import async_session_factory
 from app.models.app_setting import AppSetting
-from app.services.app_settings import get_proxy_url_sync
+from app.services.app_settings import (
+    COLLECT_SCHEDULE_KEY,
+    COLLECT_SCHEDULE_STATE_KEY,
+    get_proxy_url_sync,
+)
 
 pytestmark = [pytest.mark.slow, pytest.mark.asyncio(loop_scope="session")]
 
 PROXY_URL = "http://user:secretpass@10.0.0.1:2260"
+SCHEDULE_KEYS = [COLLECT_SCHEDULE_KEY, COLLECT_SCHEDULE_STATE_KEY]
 
 
 @pytest_asyncio.fixture(autouse=True, loop_scope="session")
@@ -31,6 +36,27 @@ async def _isolate_setting():
         await s.execute(delete(AppSetting).where(AppSetting.key == "crawler_proxy"))
         if original is not None:
             s.add(AppSetting(key="crawler_proxy", value=original))
+        await s.commit()
+
+
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
+async def _isolate_schedule_setting():
+    """暂存并恢复定时采集配置/状态 KV，避免污染 dev 环境真实配置。"""
+    async with async_session_factory() as s:
+        originals = {}
+        for key in SCHEDULE_KEYS:
+            row = await s.get(AppSetting, key)
+            originals[key] = row.value if row else None
+        await s.execute(delete(AppSetting).where(AppSetting.key.in_(SCHEDULE_KEYS)))
+        await s.commit()
+
+    yield
+
+    async with async_session_factory() as s:
+        await s.execute(delete(AppSetting).where(AppSetting.key.in_(SCHEDULE_KEYS)))
+        for key, value in originals.items():
+            if value is not None:
+                s.add(AppSetting(key=key, value=value))
         await s.commit()
 
 
@@ -168,6 +194,80 @@ class TestProxyProbe:
             "/api/v1/admin/settings/proxy/test", json={}, headers=admin_headers
         )
         assert resp.status_code == 422
+
+
+class TestCollectScheduleCrud:
+    async def test_default_disabled(self, client, admin_headers):
+        resp = await client.get(
+            "/api/v1/admin/settings/collect-schedule", headers=admin_headers
+        )
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "enabled": False,
+            "time": "03:30",
+            "batch": 5,
+            "state": None,
+        }
+
+    async def test_put_roundtrip(self, client, admin_headers):
+        resp = await client.put(
+            "/api/v1/admin/settings/collect-schedule",
+            json={"enabled": True, "time": "04:15", "batch": 8},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert (data["enabled"], data["time"], data["batch"]) == (True, "04:15", 8)
+
+        resp = await client.get(
+            "/api/v1/admin/settings/collect-schedule", headers=admin_headers
+        )
+        data = resp.json()
+        assert (data["enabled"], data["time"], data["batch"]) == (True, "04:15", 8)
+
+    async def test_state_echoed_back(self, client, admin_headers):
+        async with async_session_factory() as s:
+            s.add(
+                AppSetting(
+                    key=COLLECT_SCHEDULE_STATE_KEY,
+                    value={"last_run_date": "2026-07-08", "last_job_id": 7},
+                )
+            )
+            await s.commit()
+        resp = await client.get(
+            "/api/v1/admin/settings/collect-schedule", headers=admin_headers
+        )
+        assert resp.json()["state"] == {"last_run_date": "2026-07-08", "last_job_id": 7}
+
+    async def test_invalid_time_422(self, client, admin_headers):
+        for bad in ("24:00", "3:30", "03:60", "abc"):
+            resp = await client.put(
+                "/api/v1/admin/settings/collect-schedule",
+                json={"enabled": False, "time": bad, "batch": 5},
+                headers=admin_headers,
+            )
+            assert resp.status_code == 422, bad
+
+    async def test_invalid_batch_422(self, client, admin_headers):
+        for bad in (0, 21):
+            resp = await client.put(
+                "/api/v1/admin/settings/collect-schedule",
+                json={"enabled": False, "time": "03:30", "batch": bad},
+                headers=admin_headers,
+            )
+            assert resp.status_code == 422, bad
+
+    async def test_forbidden_for_user(self, client, auth_headers):
+        resp = await client.get(
+            "/api/v1/admin/settings/collect-schedule", headers=auth_headers
+        )
+        assert resp.status_code == 403
+        resp = await client.put(
+            "/api/v1/admin/settings/collect-schedule",
+            json={"enabled": False, "time": "03:30", "batch": 5},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 403
 
 
 class TestInjection:

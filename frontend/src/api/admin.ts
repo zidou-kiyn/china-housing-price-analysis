@@ -3,6 +3,7 @@ import type {
   AdminJobListResponse,
   AnnualImportResult,
   CityCoverageListResponse,
+  CollectScheduleSetting,
   CollectSourcesResponse,
   ProxySetting,
   ProxyTestResult,
@@ -128,4 +129,18 @@ export function saveProxySetting(payload: {
 
 export function testProxy(url?: string): Promise<ProxyTestResult> {
   return api.post('/admin/settings/proxy/test', { url: url || undefined })
+}
+
+// ---- 定时采集设置 ----
+
+export function fetchCollectSchedule(): Promise<CollectScheduleSetting> {
+  return api.get('/admin/settings/collect-schedule')
+}
+
+export function saveCollectSchedule(payload: {
+  enabled: boolean
+  time: string
+  batch: number
+}): Promise<CollectScheduleSetting> {
+  return api.put('/admin/settings/collect-schedule', payload)
 }

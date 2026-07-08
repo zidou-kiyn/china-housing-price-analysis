@@ -216,6 +216,29 @@ export interface CollectSource {
   price_unit: string
 }
 
+export interface CollectScheduleState {
+  last_run_date?: string
+  last_run_at?: string
+  last_job_id?: number
+  last_error?: string
+  expand_cursor?: number
+  last_result?: {
+    submitted: number
+    ok?: number
+    failed?: number
+    circuit_broken?: boolean
+    skipped?: string[]
+    note?: string
+  }
+}
+
+export interface CollectScheduleSetting {
+  enabled: boolean
+  time: string
+  batch: number
+  state: CollectScheduleState | null
+}
+
 export interface CollectSourcesResponse {
   current: string
   items: CollectSource[]

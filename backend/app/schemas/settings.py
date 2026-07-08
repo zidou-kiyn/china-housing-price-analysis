@@ -25,3 +25,20 @@ class ProxyTestResult(BaseModel):
     status_code: int | None = None
     elapsed_ms: int | None = None
     error: str | None = None
+
+
+class CollectScheduleOut(BaseModel):
+    """定时采集配置 + 调度器运行状态摘要。"""
+
+    enabled: bool
+    time: str  # "HH:MM"，容器本地时区
+    batch: int
+    # 调度器写入：last_run_date/last_run_at/last_job_id/last_result/
+    # last_error/expand_cursor（自由结构，前端按需取用）
+    state: dict | None
+
+
+class CollectScheduleUpdate(BaseModel):
+    enabled: bool
+    time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    batch: int = Field(ge=1, le=20)

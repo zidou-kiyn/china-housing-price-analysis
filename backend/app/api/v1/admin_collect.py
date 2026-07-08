@@ -11,14 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_session, require_admin
 from app.collector.base import SourceRegistry
 from app.collector.sources.listing_annual import SOURCES as ANNUAL_SOURCES
-from app.core.database import async_session_factory
 from app.core.errors import ApiError
 from app.models.city import City
 from app.models.district import District
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import UserAccount
 from app.pipeline.loaders import upsert_cities
-from app.pipeline.runner import PipelineRunner
 from app.schemas.admin_job import (
     AdminJobOut,
     AnnualImportRequest,
@@ -33,6 +31,7 @@ from app.schemas.admin_job import (
 )
 from app.services import geo, job_runner, nationwide_import
 from app.services.app_settings import get_collect_source, set_collect_source
+from app.services.collect_tasks import run_collect
 
 router = APIRouter(prefix="/admin/collect", tags=["admin"])
 
@@ -214,24 +213,13 @@ async def _resolve_collect_targets(db: AsyncSession, payload: CollectRequest) ->
 
 
 async def _run_collect(job_id: int, city_codes: list[str], source_name: str) -> None:
-    """采集任务体：逐城市执行完整 pipeline，失败不中断，摘要写入 result。"""
-    runner = PipelineRunner(async_session_factory)
-    results: list[dict] = []
-    for i, code in enumerate(city_codes, start=1):
-        try:
-            stats = await runner.run(source_name, code)
-            results.append(
-                {
-                    "city": code,
-                    "ok": True,
-                    "snapshots": stats["snapshots"],
-                    "distributions": stats["distributions"],
-                }
-            )
-        except Exception as exc:
-            results.append({"city": code, "ok": False, "error": str(exc)[:500]})
-        await job_runner.report_progress(job_id, i, result=results)
+    """手动采集任务体：逐城市执行完整 pipeline，失败不中断，摘要写入 result。
 
+    共用循环抽到 services.collect_tasks.run_collect；手动路径不加节流/熔断
+    （定时路径才需要，见 collect_scheduler），保持既有行为与 job result 结构。
+    """
+    summary = await run_collect(job_id, city_codes, source_name)
+    results = summary["results"]
     if results and not any(r["ok"] for r in results):
         raise RuntimeError(f"全部 {len(results)} 个城市采集失败")
 

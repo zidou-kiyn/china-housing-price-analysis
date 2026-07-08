@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import {
   fetchCityCoverage,
+  fetchCollectSchedule,
   fetchCollectSources,
   fetchJobs,
   fetchProxySetting,
   importAnnual,
   refreshCities,
+  saveCollectSchedule,
   saveCollectSource,
   saveProxySetting,
   submitCollect,
@@ -17,6 +19,7 @@ import type {
   AdminJob,
   AnnualImportResult,
   CityCoverage,
+  CollectScheduleState,
   CollectSource,
   ProxyTestResult,
 } from '@/types'
@@ -209,6 +212,60 @@ async function onTestProxy() {
   }
 }
 
+// ---- 定时采集设置 ----
+const scheduleEnabled = ref(false)
+const scheduleTime = ref('03:30')
+const scheduleBatch = ref(5)
+const scheduleState = ref<CollectScheduleState | null>(null)
+const scheduleSaving = ref(false)
+
+async function loadSchedule() {
+  const s = await fetchCollectSchedule()
+  scheduleEnabled.value = s.enabled
+  scheduleTime.value = s.time
+  scheduleBatch.value = s.batch
+  scheduleState.value = s.state
+}
+
+async function onSaveSchedule() {
+  scheduleSaving.value = true
+  try {
+    const s = await saveCollectSchedule({
+      enabled: scheduleEnabled.value,
+      time: scheduleTime.value,
+      batch: scheduleBatch.value,
+    })
+    scheduleEnabled.value = s.enabled
+    scheduleTime.value = s.time
+    scheduleBatch.value = s.batch
+    scheduleState.value = s.state
+    ElMessage.success(
+      s.enabled ? `定时采集已开启（每日 ${s.time}，每批 ${s.batch} 城）` : '定时采集已关闭',
+    )
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail ?? '保存失败')
+  } finally {
+    scheduleSaving.value = false
+  }
+}
+
+const scheduleLastRunText = computed(() => {
+  const st = scheduleState.value
+  if (!st?.last_run_at) return null
+  const parts = [`上次运行 ${formatTime(st.last_run_at)}`]
+  if (st.last_job_id != null) parts.push(`任务 #${st.last_job_id}`)
+  const r = st.last_result
+  if (r) {
+    if (r.note) {
+      parts.push(r.note)
+    } else {
+      parts.push(`提交 ${r.submitted} 城`)
+      if (r.ok != null) parts.push(`成功 ${r.ok} / 失败 ${r.failed ?? 0}`)
+    }
+  }
+  return parts.join(' · ')
+})
+
 // ---- 数据源切换 ----
 const sources = ref<CollectSource[]>([])
 const currentSource = ref('')
@@ -300,7 +357,7 @@ function formatTime(iso: string | null): string {
 }
 
 onMounted(async () => {
-  await Promise.all([loadCities(), loadJobs(), loadProxy(), loadSources()])
+  await Promise.all([loadCities(), loadJobs(), loadProxy(), loadSources(), loadSchedule()])
 })
 watch([page, pageSize], loadCities)
 watch(historyPage, loadJobs)
@@ -371,6 +428,46 @@ watch(historyPage, loadJobs)
       </div>
       <div class="proxy-hint">
         代理仅作用于数据采集（creprice）；采集源屏蔽境外 IP，请使用国内出口代理。地图（DataV）始终直连。
+      </div>
+    </el-card>
+
+    <el-card class="schedule-card">
+      <div class="schedule-row">
+        <span class="schedule-label">定时采集</span>
+        <el-switch v-model="scheduleEnabled" active-text="启用" />
+        <span class="schedule-field-label">每日</span>
+        <el-time-select
+          v-model="scheduleTime"
+          class="schedule-time"
+          start="00:00"
+          step="00:30"
+          end="23:30"
+          :clearable="false"
+        />
+        <span class="schedule-field-label">每批</span>
+        <el-input-number v-model="scheduleBatch" :min="1" :max="20" class="schedule-batch" />
+        <span class="schedule-field-label">城</span>
+        <el-button type="primary" :loading="scheduleSaving" @click="onSaveSchedule">
+          保存
+        </el-button>
+      </div>
+      <div v-if="scheduleLastRunText || scheduleState?.last_error" class="schedule-state">
+        <span v-if="scheduleLastRunText">{{ scheduleLastRunText }}</span>
+        <el-tag
+          v-if="scheduleState?.last_result?.circuit_broken"
+          type="warning"
+          size="small"
+        >
+          限流熔断，剩余城市顺延下批
+        </el-tag>
+        <span v-if="scheduleState?.last_error" class="schedule-error">
+          {{ scheduleState.last_error }}
+        </span>
+      </div>
+      <div class="schedule-hint">
+        每日到点自动采集一批 creprice 城市：缺当月数据的续采优先（最旧在前），余量按城市顺序轮换扩展新城市。
+        时刻按后端服务器时区（当前容器为 UTC，北京时间 = UTC+8）。城市间随机间隔 10~20s，连续 3 城失败自动熔断，避免触发源站限流。
+        保存后约 1 分钟内生效，无需重启服务。
       </div>
     </el-card>
 
@@ -497,8 +594,13 @@ watch(historyPage, loadJobs)
     <h3>历史任务</h3>
     <el-table :data="historyJobs" stripe>
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column label="类型" width="110">
-        <template #default="{ row }">{{ KIND_LABELS[row.kind] ?? row.kind }}</template>
+      <el-table-column label="类型" width="130">
+        <template #default="{ row }">
+          {{ KIND_LABELS[row.kind] ?? row.kind }}
+          <el-tag v-if="row.payload?.trigger === 'schedule'" size="small" type="info">
+            定时
+          </el-tag>
+        </template>
       </el-table-column>
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
@@ -616,6 +718,57 @@ h3 {
 }
 
 .proxy-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.schedule-card {
+  margin-bottom: 16px;
+}
+
+.schedule-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.schedule-label {
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+}
+
+.schedule-field-label {
+  color: #606266;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.schedule-time {
+  width: 120px;
+}
+
+.schedule-batch {
+  width: 120px;
+}
+
+.schedule-state {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #606266;
+}
+
+.schedule-error {
+  color: #f56c6c;
+}
+
+.schedule-hint {
   margin-top: 8px;
   font-size: 12px;
   color: #909399;

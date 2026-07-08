@@ -45,6 +45,13 @@ Validation commands: `.venv/bin/python -m ruff check app tests scripts`,
   `redis_client`, so callers need not pass one). Any NEW `api:*` cache key family
   MUST be added to `_api_cache_patterns` in `app/core/cache.py`, or it will serve
   stale data for up to its TTL after ingestion.
+- **In-process background schedulers** (pattern set by `services/collect_scheduler.py`):
+  60s asyncio loop started in lifespan, re-reads its settings-KV config every wake
+  (changes apply without restart), guarded off under pytest (`"pytest" in sys.modules`)
+  and by `COLLECT_SCHEDULER_DISABLED=1`. Day-level dedup MUST be an atomic PG
+  ON CONFLICT claim, not a read-then-write — prod uvicorn runs `--workers 2`, so
+  every worker hosts a loop. Loop body catches all non-cancel exceptions and writes
+  `last_error` to the state KV; a scheduler must never break app startup/shutdown.
 - **Path params that resolve to filesystem paths need double validation** (learned
   from model-governance: `DELETE /admin/predict/models/{name}/{version}` was
   traversable via `name=".."`). API layer: `fastapi.Path` pattern

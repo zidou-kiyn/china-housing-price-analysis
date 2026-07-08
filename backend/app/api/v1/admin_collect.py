@@ -180,6 +180,8 @@ async def import_annual_prices(
         skipped_count=len(stats["skipped"]),
         skipped_cities=stats["skipped"],
         snapshots=stats["snapshots"],
+        rejected=stats.get("rejected", 0),
+        flagged=stats.get("flagged", 0),
     )
 
 

@@ -5,6 +5,7 @@ import type {
   CityCoverageListResponse,
   CollectScheduleSetting,
   CollectSourcesResponse,
+  DataQualityReport,
   ProxySetting,
   ProxyTestResult,
   UserAdmin,
@@ -116,6 +117,12 @@ export function fetchJobs(
 
 export function fetchJob(jobId: number): Promise<AdminJob> {
   return api.get(`/admin/jobs/${jobId}`)
+}
+
+// ---- 数据质量审计 ----
+
+export function fetchDataQualityReport(): Promise<DataQualityReport> {
+  return api.get('/admin/data-quality/report')
 }
 
 // ---- 采集代理设置 ----

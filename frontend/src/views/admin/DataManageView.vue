@@ -3,6 +3,7 @@ import {
   fetchCityCoverage,
   fetchCollectSchedule,
   fetchCollectSources,
+  fetchDataQualityReport,
   fetchJob,
   fetchJobs,
   fetchProxySetting,
@@ -23,6 +24,8 @@ import type {
   CityCoverage,
   CollectScheduleState,
   CollectSource,
+  DataQualityReport,
+  DirectionConsistencySection,
   IndexImportStats,
   ProxyTestResult,
 } from '@/types'
@@ -189,6 +192,40 @@ async function onImportIndex() {
     indexImporting.value = false
   }
 }
+
+// ---- 数据质量审计（要点卡：离群数 / 方向一致率 / 模型新鲜度） ----
+const quality = ref<DataQualityReport | null>(null)
+const qualityLoading = ref(false)
+
+async function loadQuality() {
+  qualityLoading.value = true
+  try {
+    quality.value = await fetchDataQualityReport()
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail ?? '数据质量报告获取失败')
+  } finally {
+    qualityLoading.value = false
+  }
+}
+
+function agreementText(section: DirectionConsistencySection): string {
+  if (section.status === 'no index data') return '未导入指数'
+  if (section.status !== 'ok' || section.agreement_rate == null) return '无重叠数据'
+  return `${section.agreement_rate}%（${section.matches}/${section.compared}）`
+}
+
+const FRESHNESS_LABELS: Record<string, string> = {
+  fresh: '模型新鲜',
+  stale: '建议重训',
+  unknown: '新鲜度未知',
+}
+
+const freshnessTagType = computed(() => {
+  const status = quality.value?.model_freshness.status
+  if (status === 'fresh') return 'success'
+  if (status === 'stale') return 'warning'
+  return 'info'
+})
 
 // ---- 采集代理设置 ----
 const proxyEnabled = ref(false)
@@ -403,6 +440,8 @@ function formatTime(iso: string | null): string {
 }
 
 onMounted(async () => {
+  // 质量报告即时计算耗时秒级，独立加载不阻塞其余区块
+  loadQuality()
   await Promise.all([loadCities(), loadJobs(), loadProxy(), loadSources(), loadSchedule()])
 })
 watch([page, pageSize], loadCities)
@@ -514,6 +553,44 @@ watch(historyPage, loadJobs)
         每日到点自动采集一批 creprice 城市：缺当月数据的续采优先（最旧在前），余量按城市顺序轮换扩展新城市。
         时刻按后端服务器时区（当前容器为 UTC，北京时间 = UTC+8）。城市间随机间隔 10~20s，连续 3 城失败自动熔断，避免触发源站限流。
         保存后约 1 分钟内生效，无需重启服务。
+      </div>
+    </el-card>
+
+    <el-card class="quality-card">
+      <div class="quality-row">
+        <span class="quality-label">数据质量</span>
+        <template v-if="quality">
+          <el-tag
+            :type="quality.overlap_ratio.outliers_total ? 'warning' : 'success'"
+            size="small"
+          >
+            跨源离群 {{ quality.overlap_ratio.outliers_total }} 对
+            <template v-if="quality.overlap_ratio.pairs">
+              / 重叠 {{ quality.overlap_ratio.pairs }}
+            </template>
+          </el-tag>
+          <span class="quality-item">
+            creprice×指数环比一致 {{ agreementText(quality.creprice_vs_index) }}
+          </span>
+          <span class="quality-item">
+            年度×指数同比一致 {{ agreementText(quality.annual_vs_index) }}
+          </span>
+          <el-tag :type="freshnessTagType" size="small">
+            {{ FRESHNESS_LABELS[quality.model_freshness.status] ?? quality.model_freshness.status }}
+            <template v-if="quality.model_freshness.model_version">
+              （{{ quality.model_freshness.model_name }}
+              {{ quality.model_freshness.model_version }}）
+            </template>
+          </el-tag>
+        </template>
+        <span v-else-if="qualityLoading" class="quality-item">报告计算中…</span>
+        <div class="spacer" />
+        <el-button size="small" :loading="qualityLoading" @click="loadQuality">刷新</el-button>
+      </div>
+      <div class="quality-hint">
+        跨源审计要点：多源重叠月价格比值离群（域 [0.5, 2.0]）、creprice 环比 / 58 年度同比与
+        NBS 指数方向一致率（平不计入分母）、活跃模型训练数据指纹 vs 当前库。明细见
+        /admin/data-quality/report。
       </div>
     </el-card>
 
@@ -839,6 +916,35 @@ h3 {
 }
 
 .schedule-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.quality-card {
+  margin-bottom: 16px;
+}
+
+.quality-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.quality-label {
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+}
+
+.quality-item {
+  font-size: 13px;
+  color: #606266;
+  white-space: nowrap;
+}
+
+.quality-hint {
   margin-top: 8px;
   font-size: 12px;
   color: #909399;

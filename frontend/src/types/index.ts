@@ -250,6 +250,9 @@ export interface AnnualImportResult {
   skipped_count: number
   skipped_cities: string[]
   snapshots: number
+  /** snapshot_validator 计数：值域/格式拦截、批内跳变标记 */
+  rejected?: number
+  flagged?: number
 }
 
 // NBS 指数导入统计（import_index 任务 result[0]）
@@ -260,4 +263,53 @@ export interface IndexImportStats {
   skipped: string[]
   rows: number
   months_range: [string, string] | null
+}
+
+// ---- 数据质量审计报告（GET /admin/data-quality/report） ----
+
+export interface DirectionConsistencySection {
+  /** ok | no overlap | "no index data"（指数未导入降级） */
+  status: string
+  regions: number
+  compared: number
+  matches: number
+  agreement_rate: number | null
+  flat_excluded: number
+  skipped_missing_index: number
+  note: string | null
+}
+
+export interface SourceCoverage {
+  source: string
+  kind: 'snapshot' | 'index'
+  granularity: string | null
+  basis: string | null
+  regions: number
+  rows: number
+  latest_month: string
+  months_behind: number
+}
+
+export interface ModelFreshness {
+  status: 'fresh' | 'stale' | 'unknown'
+  model_name: string | null
+  model_version: string | null
+  trained_at: string | null
+  model_fingerprint: string | null
+  data_fingerprint: string | null
+  note: string | null
+}
+
+export interface DataQualityReport {
+  generated_at: string
+  overlap_ratio: {
+    pairs: number
+    outliers_total: number
+    outliers: Array<Record<string, unknown>>
+    ratio_median: number | null
+  }
+  creprice_vs_index: DirectionConsistencySection
+  annual_vs_index: DirectionConsistencySection
+  coverage: SourceCoverage[]
+  model_freshness: ModelFreshness
 }

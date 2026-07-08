@@ -84,14 +84,18 @@ class TestListAll:
         assert ModelStore(tmp_path / "nope").list_all() == []
 
 
-def _save_dummy(store, model_name: str, version: str, mape: float = 5.0) -> None:
+def _save_dummy(
+    store,
+    model_name: str,
+    version: str,
+    mape: float = 5.0,
+    real_mape: float | None = None,
+) -> None:
     """写入一个廉价的伪版本（pkl 内容不参与断言，仅占位两文件）。"""
-    store.save(
-        model_name,
-        version,
-        {"dummy": True},
-        {"model_name": model_name, "version": version, "metrics": {"mape": mape}},
-    )
+    meta = {"model_name": model_name, "version": version, "metrics": {"mape": mape}}
+    if real_mape is not None:
+        meta["metrics_real_monthly"] = {"mape": real_mape}
+    store.save(model_name, version, {"dummy": True}, meta)
 
 
 class TestDelete:
@@ -196,6 +200,38 @@ class TestBestVersions:
             {"dummy": True},
             {"model_name": "random_forest", "version": "v1.1"},  # 无 metrics
         )
+        assert store.best_versions() == {"random_forest": "v1.0"}
+
+    def test_prefers_real_monthly_mape_over_headline(self, store):
+        """年度扩充训练的版本按 metrics_real_monthly 评最佳，headline 虚低不作数。
+
+        复刻实况：v1.7 headline 0.25/real 2.71 vs v1.8 headline 0.31/real 2.70
+        —— headline 口径下 v1.7 胜，诚实口径下 v1.8 胜。
+        """
+        _save_dummy(store, "random_forest", "v1.7", mape=0.25, real_mape=2.71)
+        _save_dummy(store, "random_forest", "v1.8", mape=0.31, real_mape=2.70)
+        assert store.best_versions() == {"random_forest": "v1.8"}
+
+    def test_falls_back_to_headline_without_real_monthly(self, store):
+        """旧 meta（纯月度训练，headline 即诚实口径）回退 metrics.mape 参与比较。"""
+        _save_dummy(store, "random_forest", "v1.0", mape=3.5)  # 无 real_monthly
+        _save_dummy(store, "random_forest", "v1.1", mape=0.2, real_mape=2.9)
+        assert store.best_versions() == {"random_forest": "v1.1"}
+
+    def test_null_real_monthly_falls_back(self, store):
+        """metrics_real_monthly 为 null（验证集无真实月度样本）时回退 headline。"""
+        store.save(
+            "random_forest",
+            "v1.0",
+            {"dummy": True},
+            {
+                "model_name": "random_forest",
+                "version": "v1.0",
+                "metrics": {"mape": 1.0},
+                "metrics_real_monthly": None,
+            },
+        )
+        _save_dummy(store, "random_forest", "v1.1", mape=0.5, real_mape=2.0)
         assert store.best_versions() == {"random_forest": "v1.0"}
 
     def test_empty_store(self, store):

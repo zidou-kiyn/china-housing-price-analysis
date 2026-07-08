@@ -153,6 +153,11 @@ def parse_index_csv(text: str) -> list[dict]:
 
     每行 CSV 拆出新建/二手两条记录；城市/年/月缺失、类型非法或指数超出合理
     区间的值跳过。分面积段的 6 列忽略（本轮只导两个总指数）。
+
+    校验说明（snapshot_validator 约定的第三条写入路径）：指数是 float、100
+    基准，不适用 ¥/㎡ 值域与环比跳变规则；格式校验（年/月合法、month 1~12、
+    指数区间 _INDEX_MIN~_INDEX_MAX）在此函数内完成，year_month 由校验后的
+    整数构造，格式必然合法。
     """
     records: list[dict] = []
     reader = csv.DictReader(io.StringIO(text))

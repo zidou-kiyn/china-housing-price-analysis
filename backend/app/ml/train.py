@@ -143,10 +143,18 @@ class ModelStore:
         return deleted
 
     def best_versions(self) -> dict[str, str]:
-        """每个模型 MAPE 最低的版本 {model_name: version}；无 mape 指标的版本忽略。"""
+        """每个模型「诚实口径」MAPE 最低的版本 {model_name: version}。
+
+        年度扩充数据训练后，全量验证集被平滑插值样本主导（headline MAPE 虚低，
+        如 0.25% vs 真实月度层 2.71%），评"最佳"必须优先用
+        metrics_real_monthly.mape；旧 meta 无该字段（多源构建器之前的版本，
+        纯月度训练时 headline 即诚实口径）回退 metrics.mape。两项都缺则忽略。
+        """
         best: dict[str, tuple[float, str]] = {}
         for meta in self.list_all():
-            mape = (meta.get("metrics") or {}).get("mape")
+            mape = (meta.get("metrics_real_monthly") or {}).get("mape")
+            if mape is None:
+                mape = (meta.get("metrics") or {}).get("mape")
             if mape is None:
                 continue
             name = meta["model_name"]

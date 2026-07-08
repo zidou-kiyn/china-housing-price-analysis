@@ -86,6 +86,9 @@ class AnnualImportResult(BaseModel):
     skipped_count: int
     skipped_cities: list[str]
     snapshots: int
+    # snapshot_validator 计数：值域/格式拦截、批内跳变标记（只增字段）
+    rejected: int = 0
+    flagged: int = 0
 
 
 class CityCoverageOut(BaseModel):

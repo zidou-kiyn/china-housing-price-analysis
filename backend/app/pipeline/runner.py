@@ -22,6 +22,7 @@ from app.pipeline.loaders import (
     upsert_price_distributions,
     upsert_price_snapshots,
 )
+from app.pipeline.snapshot_validator import validate_snapshot_records
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,15 @@ class PipelineRunner:
     async def run(self, source_name: str, city_code: str) -> dict:
         """端到端执行单城市采集入库，返回统计摘要。"""
         source = SourceRegistry.get(source_name)
-        stats = {"snapshots": 0, "distributions": 0, "logs": 0, "errors": []}
+        stats = {
+            "snapshots": 0,
+            "distributions": 0,
+            "logs": 0,
+            "errors": [],
+            # snapshot_validator 统计：rejected=值域/格式拦截，flagged=环比跳变标记
+            "rejected": 0,
+            "flagged": 0,
+        }
 
         # ¥/㎡ 时序管线只适用于声明 PRICE_TIMELINE 的源；指数类源（如 govstats）走独立路径，
         # 直接拒绝以避免把指数值污染进 supply_price。
@@ -67,10 +76,12 @@ class PipelineRunner:
                     if city_id is None:
                         raise ValueError(f"城市 {city_code} 不在数据源城市列表中")
 
-                    n = await self._load_city_timeline(
+                    n, rejected, flagged = await self._load_city_timeline(
                         session, source, city_code, city_id, job.id
                     )
                     stats["snapshots"] += n
+                    stats["rejected"] += rejected
+                    stats["flagged"] += flagged
                     stats["logs"] += 1
 
                     if supports_dist:
@@ -78,10 +89,12 @@ class PipelineRunner:
                             dist_id = dist_map.get(dist.code)
                             if dist_id is None:
                                 continue
-                            n = await self._load_district_timeline(
+                            n, rejected, flagged = await self._load_district_timeline(
                                 session, source, city_code, dist.code, dist_id, job.id
                             )
                             stats["snapshots"] += n
+                            stats["rejected"] += rejected
+                            stats["flagged"] += flagged
                             stats["logs"] += 1
 
                     if supports_distribution:
@@ -208,26 +221,28 @@ class PipelineRunner:
 
     async def _load_city_timeline(
         self, session, source, city_code, city_id, job_id
-    ) -> int:
+    ) -> tuple[int, int, int]:
         raw = await self._fetch_and_log(
             session, job_id, source.fetch_price_timeline, city_code, "allsq1"
         )
-        cleaned = clean_price_timeline(raw.records)
-        return await upsert_price_snapshots(
-            session, cleaned, "city", city_id, source=source.source_name
+        vr = validate_snapshot_records(clean_price_timeline(raw.records))
+        n = await upsert_price_snapshots(
+            session, vr.accepted, "city", city_id, source=source.source_name
         )
+        return n, len(vr.rejected), len(vr.flagged)
 
     async def _load_district_timeline(
         self, session, source, city_code, dist_code, dist_id, job_id
-    ) -> int:
+    ) -> tuple[int, int, int]:
         raw = await self._fetch_and_log(
             session, job_id, source.fetch_price_timeline, city_code, dist_code,
             district_code=dist_code,
         )
-        cleaned = clean_price_timeline(raw.records)
-        return await upsert_price_snapshots(
-            session, cleaned, "district", dist_id, source=source.source_name
+        vr = validate_snapshot_records(clean_price_timeline(raw.records))
+        n = await upsert_price_snapshots(
+            session, vr.accepted, "district", dist_id, source=source.source_name
         )
+        return n, len(vr.rejected), len(vr.flagged)
 
     async def _load_city_distribution(
         self, session, source, city_code, city_id, job_id

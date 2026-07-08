@@ -52,6 +52,9 @@ async def run_collect(
                     "ok": True,
                     "snapshots": stats["snapshots"],
                     "distributions": stats["distributions"],
+                    # snapshot_validator 计数（只增字段，旧消费方不受影响）
+                    "rejected": stats.get("rejected", 0),
+                    "flagged": stats.get("flagged", 0),
                 }
             )
             consecutive_failures = 0

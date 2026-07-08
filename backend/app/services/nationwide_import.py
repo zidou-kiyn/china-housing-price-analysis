@@ -21,6 +21,7 @@ from app.collector.sources.listing_annual import (
 from app.core.cache import invalidate_api_caches, redis_client
 from app.models.city import City
 from app.pipeline.loaders import upsert_price_snapshots
+from app.pipeline.snapshot_validator import validate_snapshot_records
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,8 @@ async def import_annual(session: AsyncSession, source_key: str = "58") -> dict:
 
     matched = 0
     snapshots = 0
+    rejected = 0
+    flagged = 0
     skipped: list[str] = []
     for city_name in sorted(by_city):
         city_id = name_to_id.get(city_name)
@@ -65,8 +68,18 @@ async def import_annual(session: AsyncSession, source_key: str = "58") -> dict:
             }
             for year in sorted(year_prices)
         ]
+        # 写入前统一校验：值域超界跳过（rejected），批内跳变只标记（flagged）。
+        # 年度点相隔 12 个月，环比规则天然不触发；值域是本路径的主防线。
+        vr = validate_snapshot_records(records)
+        rejected += len(vr.rejected)
+        flagged += len(vr.flagged)
+        if vr.rejected:
+            logger.warning(
+                "年度导入 %s：%s %d 行值域/格式超界被跳过: %s",
+                source_key, city_name, len(vr.rejected), vr.rejected[:5],
+            )
         snapshots += await upsert_price_snapshots(
-            session, records, "city", city_id, source=source_tag
+            session, vr.accepted, "city", city_id, source=source_tag
         )
         matched += 1
 
@@ -91,4 +104,6 @@ async def import_annual(session: AsyncSession, source_key: str = "58") -> dict:
         "matched": matched,
         "skipped": skipped,
         "snapshots": snapshots,
+        "rejected": rejected,
+        "flagged": flagged,
     }

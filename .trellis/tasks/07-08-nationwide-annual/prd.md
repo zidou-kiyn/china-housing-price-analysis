@@ -25,9 +25,9 @@
 
 ## Acceptance Criteria
 
-- [ ] 下载+解析 58 CSV（缓存到 gitignore 的 data/ 下），离线解析单测。
-- [ ] 批量导入：name→city_id 匹配，≥320 城落库年度快照，`source='listing_annual_58'`，返回覆盖统计（匹配/跳过/快照数）。
-- [ ] 管理端可触发导入（endpoint 或 job）；未匹配城市清单可见/记录。
-- [ ] 前端首页抽查 5 个跨区域城市（如洛阳/克拉玛依/三亚/大庆/桂林）能选中并渲染年度走势。
-- [ ] creprice/kaggle 既有数据无回归；导入幂等（重跑不产生重复）。
-- [ ] （可选）anjuke 349 城做补缺，`source='listing_annual_anjuke'`。
+- [x] 下载+解析 58 CSV（缓存到 gitignore 的 data/listing/），离线解析单测（7 个）。
+- [x] 批量导入：name→city_id 匹配，**330 城**落库 **3206 条**年度快照，`source='listing_annual_58'`，返回覆盖统计；35 城未匹配跳过（义乌/昆山/兴安盟/香港等，与预期一致）。
+- [x] 管理端可触发导入：`POST /admin/collect/import-annual`（同步，require_admin）；skipped_cities 在响应与日志中可见。
+- [x] 前端首页抽查洛阳/克拉玛依/三亚/桂林（Playwright 实测），走势图渲染年度点；价格与研究预测一致（洛阳 6792、克拉玛依 5278、三亚 29787）。
+- [x] creprice/kaggle 无回归（泉州月度点完好，全量 249 passed）；导入幂等（UI 重跑统计不变）。
+- [ ] （可选，未做）anjuke 349 城补缺：当前 upsert 为 latest-wins，直接导会覆盖 58 同城同年值而非"补缺"，需先加"仅缺失才写"逻辑，留待需要时做。

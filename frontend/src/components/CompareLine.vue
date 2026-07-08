@@ -20,7 +20,22 @@ function renderChart() {
       title: { text: '多区域均价走势对比', left: 'center', textStyle: { fontSize: 16 } },
       tooltip: {
         trigger: 'axis',
-        valueFormatter: (value: unknown) => (value == null ? '-' : `${value} 元/㎡`),
+        formatter: (params: any) => {
+          let text = params[0].axisValue
+          const month = params[0].axisValue
+          for (const p of params) {
+            if (p.value == null) continue
+            // 该区域该月的数据来源，年度挂牌点标注口径
+            const source = props.regions[p.seriesIndex]?.data.find(
+              (d) => d.year_month === month,
+            )?.source
+            const tag = source?.startsWith('listing_annual')
+              ? ' <span style="color:#E6A23C">(年度·挂牌)</span>'
+              : ''
+            text += `<br/>${p.marker} ${p.seriesName}：${p.value} 元/㎡${tag}`
+          }
+          return text
+        },
       },
       legend: { bottom: 0, data: props.regions.map((r) => r.region_name) },
       xAxis: { type: 'category', data: months, axisLabel: { rotate: 45 } },

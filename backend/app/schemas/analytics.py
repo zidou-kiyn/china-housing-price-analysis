@@ -24,6 +24,8 @@ class RankResponse(BaseModel):
 class ComparePoint(BaseModel):
     year_month: str
     price: int | None = None
+    # 该点数据来源（口径标注用）
+    source: str | None = None
 
 
 class CompareRegion(BaseModel):

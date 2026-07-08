@@ -20,6 +20,13 @@ export interface TrendPoint {
   source: string | null
 }
 
+export interface TrendSeries {
+  source: string
+  granularity: 'monthly' | 'annual' | string
+  basis: 'listing' | 'transaction' | string
+  points: TrendPoint[]
+}
+
 export interface DistributionItem {
   price_range_low: number
   price_range_high: number
@@ -48,6 +55,8 @@ export interface RankItem {
   value_price: number | null
   yoy_pct: number | null
   mom_pct: number | null
+  /** 最新值的数据来源，口径标注用（如年度·挂牌） */
+  source: string | null
 }
 
 export interface RankResponse {
@@ -60,6 +69,8 @@ export interface RankResponse {
 export interface ComparePoint {
   year_month: string
   price: number | null
+  /** 该点数据来源（口径标注用） */
+  source?: string | null
 }
 
 export interface CompareRegion {

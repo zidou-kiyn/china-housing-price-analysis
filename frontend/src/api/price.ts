@@ -1,4 +1,11 @@
-import type { City, District, DistributionItem, DistrictOverviewItem, TrendPoint } from '@/types'
+import type {
+  City,
+  District,
+  DistributionItem,
+  DistrictOverviewItem,
+  TrendPoint,
+  TrendSeries,
+} from '@/types'
 import api from './index'
 
 export function fetchCities(): Promise<City[]> {
@@ -13,6 +20,12 @@ export function fetchTrend(regionType: string, regionId: number, months?: number
   const params: Record<string, string | number> = { region_type: regionType, region_id: regionId }
   if (months) params.months = months
   return api.get('/prices/trend', { params })
+}
+
+export function fetchTrendSeries(regionType: string, regionId: number): Promise<TrendSeries[]> {
+  return api.get('/prices/trend/series', {
+    params: { region_type: regionType, region_id: regionId },
+  })
 }
 
 export function fetchDistribution(regionType: string, regionId: number): Promise<DistributionItem[]> {

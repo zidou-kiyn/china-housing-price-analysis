@@ -108,8 +108,18 @@ watch([regionType, selectedCity, page, pageSize], loadRank)
           <span :class="pctClass(row.yoy_pct)">{{ formatPct(row.yoy_pct) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="year_month" label="数据月份" min-width="100">
-        <template #default="{ row }">{{ row.year_month ?? '-' }}</template>
+      <el-table-column prop="year_month" label="数据月份" min-width="140">
+        <template #default="{ row }">
+          {{ row.year_month ?? '-' }}
+          <el-tag
+            v-if="row.source?.startsWith('listing_annual')"
+            type="warning"
+            size="small"
+            effect="plain"
+          >
+            年度·挂牌
+          </el-tag>
+        </template>
       </el-table-column>
       <el-table-column v-if="regionType === 'district'" label="操作" width="90">
         <template #default="{ row }">

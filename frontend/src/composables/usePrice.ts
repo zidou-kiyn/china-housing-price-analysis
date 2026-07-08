@@ -1,12 +1,13 @@
 import { ref } from 'vue'
-import type { City, DistributionItem, DistrictOverviewItem, TrendPoint } from '@/types'
-import { fetchCities, fetchDistribution, fetchOverview, fetchTrend } from '@/api/price'
+import type { City, DistributionItem, DistrictOverviewItem, TrendSeries } from '@/types'
+import { fetchCities, fetchDistribution, fetchOverview, fetchTrendSeries } from '@/api/price'
 
 export function usePrice() {
   const cities = ref<City[]>([])
   const overview = ref<DistrictOverviewItem[]>([])
-  const cityTrend = ref<TrendPoint[]>([])
-  const districtTrend = ref<TrendPoint[]>([])
+  // 按源分线的走势序列（源独立存储后，避免跨口径硬连线）
+  const cityTrend = ref<TrendSeries[]>([])
+  const districtTrend = ref<TrendSeries[]>([])
   const distribution = ref<DistributionItem[]>([])
   const selectedCity = ref<City | null>(null)
   const selectedDistrict = ref<DistrictOverviewItem | null>(null)
@@ -24,7 +25,7 @@ export function usePrice() {
     try {
       const [ov, trend, dist] = await Promise.all([
         fetchOverview(city.code),
-        fetchTrend('city', city.id),
+        fetchTrendSeries('city', city.id),
         fetchDistribution('city', city.id),
       ])
       overview.value = ov
@@ -39,7 +40,7 @@ export function usePrice() {
     selectedDistrict.value = district
     loading.value = true
     try {
-      districtTrend.value = await fetchTrend('district', district.id)
+      districtTrend.value = await fetchTrendSeries('district', district.id)
     } finally {
       loading.value = false
     }

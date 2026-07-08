@@ -164,7 +164,7 @@ async def price_compare(
         regions_data = []
         for rid in ids:
             data = [
-                {"year_month": ym, "price": getattr(snap, price_type)}
+                {"year_month": ym, "price": getattr(snap, price_type), "source": snap.source}
                 for ym, snap in sorted(snapshots.get(rid, {}).items())
             ]
             regions_data.append({"region_id": rid, "region_name": names[rid], "data": data})

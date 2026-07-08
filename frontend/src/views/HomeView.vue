@@ -56,14 +56,14 @@ function onDistrictClick(district: DistrictOverviewItem) {
             <!-- 城市走势 -->
             <el-col :span="districtTrend.length ? 12 : 24">
               <el-card v-if="cityTrend.length" shadow="hover" class="chart-card">
-                <TrendLine :title="`${selectedCity.name} 整体走势`" :data="cityTrend" />
+                <TrendLine :title="`${selectedCity.name} 整体走势`" :series="cityTrend" />
               </el-card>
             </el-col>
 
             <!-- 区县走势 -->
             <el-col v-if="districtTrend.length && selectedDistrict" :span="12">
               <el-card shadow="hover" class="chart-card">
-                <TrendLine :title="`${selectedDistrict.name} 走势`" :data="districtTrend" />
+                <TrendLine :title="`${selectedDistrict.name} 走势`" :series="districtTrend" />
               </el-card>
             </el-col>
           </el-row>

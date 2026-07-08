@@ -16,12 +16,12 @@
 ## 截图预览
 
 <p align="center">
-  <img src="docs/image/首页大屏.png" width="90%" alt="首页大屏" />
+  <img src="docs/images/首页大屏.png" width="90%" alt="首页大屏" />
 </p>
 
 | 热力地图 | 趋势预测 | 管理后台 |
 |:---:|:---:|:---:|
-| ![热力地图](docs/image/热力地图.png) | ![趋势预测](docs/image/预测页面.png) | ![管理后台](docs/image/管理后台.png) |
+| ![热力地图](docs/images/热力地图.png) | ![趋势预测](docs/images/预测页面.png) | ![管理后台](docs/images/管理后台.png) |
 
 ## 功能特性
 

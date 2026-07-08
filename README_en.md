@@ -16,12 +16,12 @@
 ## Screenshots
 
 <p align="center">
-  <img src="docs/image/首页大屏.png" width="90%" alt="Home Dashboard" />
+  <img src="docs/images/首页大屏.png" width="90%" alt="Home Dashboard" />
 </p>
 
 | Heat Map | Price Forecast | Admin Panel |
 |:---:|:---:|:---:|
-| ![Heat Map](docs/image/热力地图.png) | ![Price Forecast](docs/image/预测页面.png) | ![Admin Panel](docs/image/管理后台.png) |
+| ![Heat Map](docs/images/热力地图.png) | ![Price Forecast](docs/images/预测页面.png) | ![Admin Panel](docs/images/管理后台.png) |
 
 ## Features
 

@@ -17,6 +17,7 @@ class TestPriceTrend:
         point = resp.json()[0]
         assert "year_month" in point
         assert "supply_price" in point
+        assert "source" in point  # 溯源注记，前端标注口径用
 
     async def test_months_filter(self, client, qz_city_id):
         resp = await client.get(f"/api/v1/prices/trend?region_type=city&region_id={qz_city_id}&months=3")

@@ -9,6 +9,8 @@ class TrendPoint(BaseModel):
     attention_price: int | None = None
     value_price: int | None = None
     sample_count: int | None = None
+    # 该点数据来源（price_snapshot.source），前端据此标注口径（如年度·挂牌）
+    source: str | None = None
 
     model_config = {"from_attributes": True}
 

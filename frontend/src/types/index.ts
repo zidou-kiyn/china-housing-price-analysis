@@ -16,6 +16,8 @@ export interface TrendPoint {
   attention_price: number | null
   value_price: number | null
   sample_count: number | null
+  /** 该点数据来源（price_snapshot.source），用于标注口径（如年度·挂牌） */
+  source: string | null
 }
 
 export interface DistributionItem {
@@ -194,4 +196,12 @@ export interface CollectSource {
 export interface CollectSourcesResponse {
   current: string
   items: CollectSource[]
+}
+
+export interface AnnualImportResult {
+  source: string
+  matched: number
+  skipped_count: number
+  skipped_cities: string[]
+  snapshots: number
 }

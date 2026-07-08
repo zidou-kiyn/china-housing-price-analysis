@@ -4,6 +4,7 @@ import {
   fetchCollectSources,
   fetchJobs,
   fetchProxySetting,
+  importAnnual,
   refreshCities,
   saveCollectSource,
   saveProxySetting,
@@ -12,7 +13,13 @@ import {
   testProxy,
 } from '@/api/admin'
 import { usePolling } from '@/composables/usePolling'
-import type { AdminJob, CityCoverage, CollectSource, ProxyTestResult } from '@/types'
+import type {
+  AdminJob,
+  AnnualImportResult,
+  CityCoverage,
+  CollectSource,
+  ProxyTestResult,
+} from '@/types'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -118,6 +125,25 @@ function onCollectAllMissing() {
 
 function onGeoAllMissing() {
   submitJob(() => submitGeoFetch({ all_missing: true }), '补齐缺图')
+}
+
+// ---- 全国年度数据导入 ----
+const annualImporting = ref(false)
+const annualResult = ref<AnnualImportResult | null>(null)
+
+async function onImportAnnual() {
+  annualImporting.value = true
+  try {
+    annualResult.value = await importAnnual('58')
+    ElMessage.success(
+      `年度数据导入完成：${annualResult.value.matched} 城 / ${annualResult.value.snapshots} 条快照`,
+    )
+    await loadCities()
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail ?? '年度数据导入失败')
+  } finally {
+    annualImporting.value = false
+  }
 }
 
 // ---- 采集代理设置 ----
@@ -370,10 +396,30 @@ watch(historyPage, loadJobs)
         @clear="onFilterChange"
       />
       <div class="spacer" />
+      <el-button :loading="annualImporting" :disabled="hasActiveJob" @click="onImportAnnual">
+        导入全国年度数据
+      </el-button>
       <el-button :loading="refreshing" :disabled="hasActiveJob" @click="onRefreshCities">
         刷新城市列表
       </el-button>
     </div>
+
+    <el-alert
+      v-if="annualResult"
+      type="success"
+      :closable="true"
+      class="annual-alert"
+      @close="annualResult = null"
+    >
+      <template #title>
+        年度挂牌数据（{{ annualResult.source }}）：匹配 {{ annualResult.matched }} 城、写入
+        {{ annualResult.snapshots }} 条年度快照；{{ annualResult.skipped_count }} 城名未匹配跳过
+        <template v-if="annualResult.skipped_count">
+          （{{ annualResult.skipped_cities.slice(0, 8).join('、')
+          }}{{ annualResult.skipped_count > 8 ? ' 等' : '' }}）
+        </template>
+      </template>
+    </el-alert>
 
     <el-table
       v-loading="loading"
@@ -580,6 +626,10 @@ h3 {
   gap: 12px;
   margin-bottom: 16px;
   align-items: center;
+}
+
+.annual-alert {
+  margin-bottom: 16px;
 }
 
 .filter-keyword {

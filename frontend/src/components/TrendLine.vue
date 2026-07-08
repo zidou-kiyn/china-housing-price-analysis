@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TrendPoint } from '@/types'
 import * as echarts from 'echarts'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   title: string
@@ -10,6 +10,18 @@ const props = defineProps<{
 
 const chartRef = ref<HTMLDivElement>()
 let chart: echarts.ECharts | null = null
+
+// 数据来源 → 口径标注（区分挂牌年度点与月度成交/评估点）
+const SOURCE_LABELS: Record<string, string> = {
+  listing_annual_58: '58 · 年度挂牌',
+  listing_annual_anjuke: '安居客 · 年度挂牌',
+  kaggle_lianjia: '链家 · 月度成交',
+  creprice: '禧泰 · 月度',
+}
+
+const hasAnnualListing = computed(() =>
+  props.data.some((d) => d.source?.startsWith('listing_annual')),
+)
 
 function renderChart() {
   if (!chart || !props.data.length) return
@@ -22,6 +34,10 @@ function renderChart() {
       trigger: 'axis',
       formatter: (params: any) => {
         let text = params[0].axisValue
+        const source = props.data[params[0].dataIndex]?.source
+        if (source) {
+          text += `　<span style="color:#909399">${SOURCE_LABELS[source] ?? source}</span>`
+        }
         for (const p of params) {
           text += `<br/>${p.marker} ${p.seriesName}：${p.value ?? '-'} 元/㎡`
         }
@@ -70,5 +86,19 @@ watch(() => [props.data, props.title], renderChart, { deep: true })
 </script>
 
 <template>
-  <div ref="chartRef" style="width: 100%; height: 350px"></div>
+  <div>
+    <div ref="chartRef" style="width: 100%; height: 350px"></div>
+    <p v-if="hasAnnualListing" class="source-note">
+      注：部分数据点为 58/安居客<b>年度挂牌均价</b>（落于每年 12 月），口径略高于成交价；悬停可查看各点来源。
+    </p>
+  </div>
 </template>
+
+<style scoped>
+.source-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #909399;
+  text-align: center;
+}
+</style>

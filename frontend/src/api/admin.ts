@@ -1,6 +1,7 @@
 import type {
   AdminJob,
   AdminJobListResponse,
+  AnnualImportResult,
   CityCoverageListResponse,
   CollectSourcesResponse,
   ProxySetting,
@@ -87,6 +88,10 @@ export function fetchCollectSources(): Promise<CollectSourcesResponse> {
 
 export function saveCollectSource(source: string): Promise<CollectSourcesResponse> {
   return api.put('/admin/collect/source', { source })
+}
+
+export function importAnnual(source = '58'): Promise<AnnualImportResult> {
+  return api.post('/admin/collect/import-annual', { source })
 }
 
 export function submitGeoFetch(payload: {

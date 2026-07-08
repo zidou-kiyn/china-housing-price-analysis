@@ -24,6 +24,15 @@ class TrendSeries(BaseModel):
     points: list[TrendPoint]
 
 
+class IndexTrendPoint(BaseModel):
+    """房价指数走势点（NBS 指数源专用，单位=指数非价格，基准 100）。"""
+
+    year_month: str
+    index_value: float
+
+    model_config = {"from_attributes": True}
+
+
 class DistributionItem(BaseModel):
     price_range_low: int
     price_range_high: int

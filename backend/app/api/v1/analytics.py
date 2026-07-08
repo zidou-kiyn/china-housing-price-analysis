@@ -7,12 +7,12 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_cache, get_session, require_user
+from app.api.deps import get_cache, get_session, require_user, source_param
 from app.models.city import City
 from app.models.district import District
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import UserAccount
-from app.services.price_select import select_merged_snapshots
+from app.services.price_select import select_snapshots_for_source
 from app.schemas.analytics import (
     CompareRegion,
     CompareResponse,
@@ -64,13 +64,14 @@ async def _load_regions(
 
 
 async def _load_snapshots(
-    db: AsyncSession, region_type: str, region_ids: list[int]
+    db: AsyncSession, region_type: str, region_ids: list[int], source: str
 ) -> dict[int, dict[str, PriceSnapshot]]:
-    """加载各区域快照，按 region_id → {year_month: snapshot} 分组。
+    """加载指定 source 的各区域快照，按 region_id → {year_month: snapshot} 分组。
 
-    多源同月按 source_policy 优先级取一行（月度 > 年度挂牌），避免随机覆盖。
+    源硬隔离：只读该 source 的行（单源每月单行，无覆盖问题）；年度源即年度点
+    （year_month=YYYY-12），rank/compare/map 用其最新年度值并标注年份，不做月度换算。
     """
-    snaps = await select_merged_snapshots(db, region_type, region_ids)
+    snaps = await select_snapshots_for_source(db, source, region_type, region_ids)
     grouped: dict[int, dict[str, PriceSnapshot]] = {}
     for snap in snaps:
         grouped.setdefault(snap.region_id, {})[snap.year_month] = snap
@@ -85,16 +86,17 @@ async def price_rank(
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    source: str = Depends(source_param),
     db: AsyncSession = Depends(get_session),
     cache: Redis = Depends(get_cache),
 ):
-    cache_key = f"api:rank:{region_type}:{city_code or 'all'}:{sort_by}:{sort_order}"
+    cache_key = f"api:rank:{source}:{region_type}:{city_code or 'all'}:{sort_by}:{sort_order}"
     cached = await cache.get(cache_key)
     if cached:
         items = json.loads(cached)
     else:
         regions = await _load_regions(db, region_type, city_code=city_code)
-        snapshots = await _load_snapshots(db, region_type, list(regions)) if regions else {}
+        snapshots = await _load_snapshots(db, region_type, list(regions), source) if regions else {}
 
         items = []
         for region_id, name in regions.items():
@@ -140,6 +142,7 @@ async def price_compare(
     region_ids: str = Query(..., description="逗号分隔的 2~5 个区域 ID"),
     months: int = Query(12, gt=0, le=120),
     price_type: str = Query("supply_price", pattern="^(supply_price|attention_price|value_price)$"),
+    source: str = Depends(source_param),
     db: AsyncSession = Depends(get_session),
     cache: Redis = Depends(get_cache),
     _user: UserAccount = Depends(require_user),
@@ -151,7 +154,7 @@ async def price_compare(
     if not 2 <= len(ids) <= 5:
         raise HTTPException(status_code=422, detail="region_ids 数量须为 2~5 个")
 
-    cache_key = f"api:compare:{region_type}:{','.join(map(str, ids))}:{price_type}"
+    cache_key = f"api:compare:{source}:{region_type}:{','.join(map(str, ids))}:{price_type}"
     cached = await cache.get(cache_key)
     if cached:
         regions_data = json.loads(cached)
@@ -160,7 +163,7 @@ async def price_compare(
         if any(rid not in names for rid in ids):
             raise HTTPException(status_code=404, detail="区域不存在")
 
-        snapshots = await _load_snapshots(db, region_type, ids)
+        snapshots = await _load_snapshots(db, region_type, ids, source)
         regions_data = []
         for rid in ids:
             data = [
@@ -184,17 +187,18 @@ async def price_compare(
 async def map_heat(
     city_code: str = Query(...),
     region_type: str = Query("district", pattern="^district$"),
+    source: str = Depends(source_param),
     db: AsyncSession = Depends(get_session),
     cache: Redis = Depends(get_cache),
     _user: UserAccount = Depends(require_user),
 ):
-    cache_key = f"api:mapheat:{city_code}:{region_type}"
+    cache_key = f"api:mapheat:{source}:{city_code}:{region_type}"
     cached = await cache.get(cache_key)
     if cached:
         return json.loads(cached)
 
     regions = await _load_regions(db, "district", city_code=city_code)
-    snapshots = await _load_snapshots(db, "district", list(regions)) if regions else {}
+    snapshots = await _load_snapshots(db, "district", list(regions), source) if regions else {}
 
     data = []
     for region_id, name in regions.items():

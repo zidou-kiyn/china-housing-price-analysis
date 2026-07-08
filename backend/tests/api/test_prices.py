@@ -69,17 +69,35 @@ class TestPriceTrend:
         resp = await client.get("/api/v1/prices/trend?region_type=invalid&region_id=1")
         assert resp.status_code == 422
 
-    async def test_trend_merges_multi_source_by_priority(self, client, multi_source_city_id):
-        """双源同月：默认 trend 每月一点，月度源优先。"""
+    async def test_trend_default_source_creprice_only(self, client, multi_source_city_id):
+        """源硬隔离：缺省 source=creprice，只返回 creprice 行，58 年度点不顶替混入。"""
         resp = await client.get(
             f"/api/v1/prices/trend?region_type=city&region_id={multi_source_city_id}"
         )
         assert resp.status_code == 200
         points = resp.json()
         assert [(p["year_month"], p["supply_price"], p["source"]) for p in points] == [
-            ("2020-12", 11000, "listing_annual_58"),
-            ("2024-12", 9000, "creprice"),  # 与 58 的 13000 共存，但月度优先
+            ("2024-12", 9000, "creprice"),  # 2020-12 的 58 年度点不再出现
         ]
+
+    async def test_trend_annual_source_isolated(self, client, multi_source_city_id):
+        """显式切 58 年度源：只返回 58 的年度行（含 2024-12=13000 原值），无 creprice。"""
+        resp = await client.get(
+            f"/api/v1/prices/trend?region_type=city&region_id={multi_source_city_id}"
+            "&source=listing_annual_58"
+        )
+        assert resp.status_code == 200
+        points = resp.json()
+        assert [(p["year_month"], p["supply_price"], p["source"]) for p in points] == [
+            ("2020-12", 11000, "listing_annual_58"),
+            ("2024-12", 13000, "listing_annual_58"),
+        ]
+
+    async def test_trend_invalid_source_422(self, client, qz_city_id):
+        resp = await client.get(
+            f"/api/v1/prices/trend?region_type=city&region_id={qz_city_id}&source=bogus"
+        )
+        assert resp.status_code == 422
 
 
 class TestPriceTrendSeries:
@@ -124,6 +142,61 @@ class TestPriceDistribution:
 
     async def test_empty_for_nonexistent(self, client):
         resp = await client.get("/api/v1/prices/distribution?region_type=city&region_id=999999")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    async def test_distribution_nonc_creprice_source_empty(self, client, qz_city_id):
+        """分布是 creprice 衍生产物：非 creprice 源直接空态（不回退 creprice）。"""
+        resp = await client.get(
+            f"/api/v1/prices/distribution?region_type=city&region_id={qz_city_id}"
+            "&source=listing_annual_58"
+        )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+
+@pytest_asyncio.fixture(loop_scope="session")
+async def index_city_id():
+    """seed 一个带 NBS 二手房环比指数的城市（供 /prices/index/trend 测试）。"""
+    from app.models.price_index_snapshot import PriceIndexSnapshot
+
+    async with async_session_factory() as s:
+        city = City(name="指数测试市", code="t_idx", province="单测省")
+        s.add(city)
+        await s.commit()
+        city_id = city.id
+        for ym, val in [("2024-11", 100.3), ("2024-12", 100.5)]:
+            s.add(
+                PriceIndexSnapshot(
+                    region_type="city", region_id=city_id, year_month=ym,
+                    dwelling_type="second", base_type="mom", index_value=val,
+                    source="nbs_github_changao1",
+                )
+            )
+        await s.commit()
+    yield city_id
+    async with async_session_factory() as s:
+        await s.execute(
+            delete(PriceIndexSnapshot).where(PriceIndexSnapshot.region_id == city_id)
+        )
+        await s.execute(delete(City).where(City.id == city_id))
+        await s.commit()
+
+
+class TestPriceIndexTrend:
+    async def test_index_trend_returns_points(self, client, index_city_id):
+        resp = await client.get(
+            f"/api/v1/prices/index/trend?region_type=city&region_id={index_city_id}"
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert [(p["year_month"], p["index_value"]) for p in data] == [
+            ("2024-11", 100.3),
+            ("2024-12", 100.5),
+        ]
+
+    async def test_index_trend_empty_for_nonexistent(self, client):
+        resp = await client.get("/api/v1/prices/index/trend?region_type=city&region_id=999999")
         assert resp.status_code == 200
         assert resp.json() == []
 

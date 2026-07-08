@@ -1,4 +1,4 @@
-"""price_select 合并选择单测：多源同月按优先级取一行（真实 DB，自清理）。"""
+"""price_select 单源选择单测：源硬隔离直读、分源分组、指数取数（真实 DB，自清理）。"""
 
 import pytest
 import pytest_asyncio
@@ -11,7 +11,7 @@ from app.models.price_snapshot import PriceSnapshot
 from app.pipeline.loaders import upsert_price_snapshots
 from app.services.price_select import (
     select_index_snapshots,
-    select_merged_snapshots,
+    select_snapshots_for_source,
     select_source_snapshots,
 )
 
@@ -50,15 +50,37 @@ async def multi_source_city():
         await s.commit()
 
 
-async def test_merged_prefers_monthly_source(multi_source_city):
+async def test_single_source_creprice_isolated(multi_source_city):
+    """creprice 源直读：只返回 creprice 行，2024-12 不被 58 的年度值顶替/混入。"""
     async with async_session_factory() as s:
-        snaps = await select_merged_snapshots(s, "city", [multi_source_city])
+        snaps = await select_snapshots_for_source(s, "creprice", "city", [multi_source_city])
 
     assert [(x.year_month, x.supply_price, x.source) for x in snaps] == [
-        ("2020-12", 11000, "listing_annual_58"),  # 仅年度源 → 用年度值
-        ("2024-12", 9000, "creprice"),  # 双源共存 → 月度源优先
+        ("2024-12", 9000, "creprice"),
         ("2025-01", 9100, "creprice"),
     ]
+
+
+async def test_single_source_annual_isolated(multi_source_city):
+    """58 年度源直读：只返回 58 行（含 2024-12=13000 原值），不与 creprice 合并。"""
+    async with async_session_factory() as s:
+        snaps = await select_snapshots_for_source(
+            s, "listing_annual_58", "city", [multi_source_city]
+        )
+
+    assert [(x.year_month, x.supply_price, x.source) for x in snaps] == [
+        ("2020-12", 11000, "listing_annual_58"),
+        ("2024-12", 13000, "listing_annual_58"),
+    ]
+
+
+async def test_single_source_unknown_source_empty(multi_source_city):
+    """未入库的源直读返回空（源硬隔离，不回退其它源）。"""
+    async with async_session_factory() as s:
+        snaps = await select_snapshots_for_source(
+            s, "kaggle_lianjia", "city", [multi_source_city]
+        )
+    assert snaps == []
 
 
 async def test_source_snapshots_grouped_not_merged(multi_source_city):
@@ -77,14 +99,15 @@ async def test_source_snapshots_grouped_not_merged(multi_source_city):
     ]
 
 
-async def test_merged_scopes_by_region(multi_source_city):
+async def test_single_source_scopes_by_region(multi_source_city):
     async with async_session_factory() as s:
-        snaps = await select_merged_snapshots(s, "city", [multi_source_city])
+        snaps = await select_snapshots_for_source(s, "creprice", "city", [multi_source_city])
         assert all(x.region_id == multi_source_city for x in snaps)
-        # 不传 region_ids 时包含其他区域，仍无同区域同月重复
-        all_snaps = await select_merged_snapshots(s, "city")
+        # 单源内同区域同月不重复（唯一键含 source，每源每月至多一行）
+        all_snaps = await select_snapshots_for_source(s, "creprice", "city")
         keys = [(x.region_id, x.year_month) for x in all_snaps]
         assert len(keys) == len(set(keys))
+        assert all(x.source == "creprice" for x in all_snaps)
 
 
 # 不存在的区域 id：指数表无外键，仅本测试写入并自清理

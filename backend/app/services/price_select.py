@@ -1,8 +1,9 @@
-"""多源快照的合并选择（读取层唯一入口）。
+"""多源快照的读取层选择器。
 
-存储层各源独立后，同一 (region, month) 可能有多行；需要"每月单值"的读取方
-（默认走势/排行/对比/预测取数）统一走这里：按 source_policy 优先级每月取一行
-（月度成交/评估 > 年度挂牌），来源保留在行的 source 字段供口径标注。
+存储层各源独立后，同一 (region, month) 可能有多行。creprice-first 方针
+（2026-07-08）后**读取层不再跨源合并**：视图按单一 `source` 直读
+（`select_snapshots_for_source`），各源硬隔离；ML 训练集构建器仍按源分组取全序列
+（`select_source_snapshots`），校准/扩充需要各源完整序列。
 """
 
 from __future__ import annotations
@@ -10,29 +11,28 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.source_policy import priority_case
 from app.models.price_index_snapshot import PriceIndexSnapshot
 from app.models.price_snapshot import PriceSnapshot
 
 
-async def select_merged_snapshots(
+async def select_snapshots_for_source(
     session: AsyncSession,
+    source: str,
     region_type: str | None = None,
     region_ids: list[int] | None = None,
 ) -> list[PriceSnapshot]:
-    """每 (region_type, region_id, year_month) 按源优先级取一行，按月升序返回。"""
+    """单源直读：`WHERE source == :source`，区域/月份升序，不做任何跨源合并。
+
+    读取层源硬隔离的唯一取数入口（默认走势/排行/对比/地图/概览）。年度源行原样
+    返回（year_month=YYYY-12），不做月度换算——单源口径一致由调用方按 source 标注。
+    """
     stmt = (
         select(PriceSnapshot)
-        .distinct(
-            PriceSnapshot.region_type,
-            PriceSnapshot.region_id,
-            PriceSnapshot.year_month,
-        )
+        .where(PriceSnapshot.source == source)
         .order_by(
             PriceSnapshot.region_type,
             PriceSnapshot.region_id,
             PriceSnapshot.year_month,
-            priority_case(),
         )
     )
     if region_type:

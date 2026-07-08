@@ -6,14 +6,20 @@ from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_cache, get_session
-from app.core.source_policy import SOURCE_META, source_priority
+from app.api.deps import get_cache, get_session, source_param
+from app.core.source_policy import DEFAULT_SOURCE, SOURCE_META, source_priority
 from app.models.city import City
 from app.models.district import District
 from app.models.price_distribution import PriceDistribution
 from app.models.price_snapshot import PriceSnapshot
-from app.schemas.price import DistributionItem, DistrictOverviewItem, TrendPoint, TrendSeries
-from app.services.price_select import select_merged_snapshots
+from app.schemas.price import (
+    DistributionItem,
+    DistrictOverviewItem,
+    IndexTrendPoint,
+    TrendPoint,
+    TrendSeries,
+)
+from app.services.price_select import select_index_snapshots, select_snapshots_for_source
 
 router = APIRouter(prefix="/prices", tags=["prices"])
 
@@ -32,10 +38,11 @@ async def price_trend(
     region_type: str = Query(..., pattern="^(city|district)$"),
     region_id: int = Query(..., gt=0),
     months: int | None = Query(None, gt=0, le=120),
+    source: str = Depends(source_param),
     db: AsyncSession = Depends(get_session),
     cache: Redis = Depends(get_cache),
 ):
-    cache_key = f"api:trend:{region_type}:{region_id}"
+    cache_key = f"api:trend:{source}:{region_type}:{region_id}"
     cached = await cache.get(cache_key)
     if cached:
         points = json.loads(cached)
@@ -43,8 +50,8 @@ async def price_trend(
             points = points[-months:]
         return points
 
-    # 多源同月按优先级合并（月度 > 年度挂牌），保持"每月一点"的响应形状
-    snaps = await select_merged_snapshots(db, region_type, [region_id])
+    # 源硬隔离：只读该 source 的行，不跨源合并（年度源即年度点，不做月度换算）
+    snaps = await select_snapshots_for_source(db, source, region_type, [region_id])
     points = [TrendPoint.model_validate(r) for r in snaps]
 
     await cache.set(
@@ -99,14 +106,47 @@ async def price_trend_series(
     return series
 
 
+@router.get("/index/trend", response_model=list[IndexTrendPoint])
+async def price_index_trend(
+    region_type: str = Query(..., pattern="^(city|district)$"),
+    region_id: int = Query(..., gt=0),
+    db: AsyncSession = Depends(get_session),
+    cache: Redis = Depends(get_cache),
+):
+    """NBS 房价指数走势（二手房环比，单位=指数非价格）。
+
+    切换器选「官方指数」源时走这里——指数走 price_index_snapshot 独立路径，
+    不混入 ¥/㎡ 端点（source_policy 未登记指数为 price_snapshot 源）。
+    """
+    cache_key = f"api:index:trend:{region_type}:{region_id}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    snaps = await select_index_snapshots(db, region_type, [region_id])
+    points = [IndexTrendPoint.model_validate(s) for s in snaps]
+    await cache.set(
+        cache_key,
+        json.dumps([p.model_dump() for p in points], cls=_DecimalEncoder),
+        ex=CACHE_TTL_PRICES,
+    )
+    return points
+
+
 @router.get("/distribution", response_model=list[DistributionItem])
 async def price_distribution(
     region_type: str = Query(..., pattern="^(city|district)$"),
     region_id: int = Query(..., gt=0),
     year_month: str | None = Query(None, pattern=r"^\d{4}-\d{2}$"),
+    source: str = Depends(source_param),
     db: AsyncSession = Depends(get_session),
     cache: Redis = Depends(get_cache),
 ):
+    # 价格分布是 creprice 月度衍生产物（price_distribution 表无 source 列）；
+    # 其它源无分布数据，源硬隔离下直接空态，不回退 creprice。
+    if source != DEFAULT_SOURCE:
+        return []
+
     if year_month is None:
         latest = await db.execute(
             select(func.max(PriceDistribution.year_month)).where(
@@ -146,10 +186,11 @@ async def price_distribution(
 @router.get("/overview", response_model=list[DistrictOverviewItem])
 async def district_overview(
     city_code: str = Query(...),
+    source: str = Depends(source_param),
     db: AsyncSession = Depends(get_session),
     cache: Redis = Depends(get_cache),
 ):
-    cache_key = f"api:overview:{city_code}"
+    cache_key = f"api:overview:{source}:{city_code}"
     cached = await cache.get(cache_key)
     if cached:
         return json.loads(cached)
@@ -164,10 +205,12 @@ async def district_overview(
 
     items = []
     for d in districts:
+        # 源硬隔离：仅取该 source 的最新月（同月多源不再混取，也避免多行报错）
         latest_month = (await db.execute(
             select(func.max(PriceSnapshot.year_month)).where(
                 PriceSnapshot.region_type == "district",
                 PriceSnapshot.region_id == d.id,
+                PriceSnapshot.source == source,
             )
         )).scalar()
 
@@ -178,6 +221,7 @@ async def district_overview(
                     PriceSnapshot.region_type == "district",
                     PriceSnapshot.region_id == d.id,
                     PriceSnapshot.year_month == latest_month,
+                    PriceSnapshot.source == source,
                 )
             )).scalar_one_or_none()
 

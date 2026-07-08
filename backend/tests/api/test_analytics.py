@@ -57,7 +57,20 @@ class TestRank:
 
     async def test_rank_cached_after_first_call(self, client):
         await client.get("/api/v1/rank?region_type=district&city_code=qz")
-        assert await redis_client.exists("api:rank:district:qz:supply_price:desc")
+        # 缓存键含 source（源硬隔离，缺省 creprice）
+        assert await redis_client.exists("api:rank:creprice:district:qz:supply_price:desc")
+
+    async def test_rank_invalid_source_422(self, client):
+        resp = await client.get("/api/v1/rank?region_type=district&city_code=qz&source=bogus")
+        assert resp.status_code == 422
+
+    async def test_rank_annual_source_isolated(self, client):
+        """qz 区县仅 creprice 月度源：切 58 年度源 → 各区县无该源数据、supply_price 空。"""
+        resp = await client.get(
+            "/api/v1/rank?region_type=district&city_code=qz&source=listing_annual_58"
+        )
+        assert resp.status_code == 200
+        assert all(i["supply_price"] is None for i in resp.json()["items"])
 
 
 class TestCompare:

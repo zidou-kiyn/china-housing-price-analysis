@@ -56,7 +56,7 @@ class ModelCleanupOut(BaseModel):
 
 
 class ActiveModelRequest(BaseModel):
-    model_name: str = Field(..., pattern="^(random_forest|xgboost)$")
+    model_name: str = Field(..., pattern="^(random_forest|xgboost|exp_smoothing)$")
     version: str = Field(..., pattern=r"^v\d+\.\d+$")
 
     model_config = {"protected_namespaces": ()}

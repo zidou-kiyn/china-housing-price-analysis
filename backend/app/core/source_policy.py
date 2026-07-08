@@ -25,6 +25,12 @@ REGISTERED_SOURCES: tuple[str, ...] = tuple(
 )
 DEFAULT_SOURCE = "creprice"
 
+# 训练/预测数据源白名单（creprice-first 方针，2026-07-08）：只有白名单内的源进
+# 训练集与预测取数（在装载入口 training_rows_only 过滤，见 predictions._load_source_rows /
+# data_quality._compute_data_fingerprint）。多源校准/赋形/插值代码路径保留但被此白名单
+# 挡在上游、自然走不到（可逆——扩容白名单即恢复多源训练）。跨源审计不受此限，看全源。
+TRAINING_SOURCES: tuple[str, ...] = ("creprice",)
+
 # granularity: monthly|annual；basis: listing(挂牌)|transaction(成交)。前端标签/口径透出用。
 SOURCE_META: dict[str, dict[str, str]] = {
     "creprice": {"granularity": "monthly", "basis": "listing"},
@@ -36,3 +42,8 @@ SOURCE_META: dict[str, dict[str, str]] = {
 
 def source_priority(source: str) -> int:
     return SOURCE_PRIORITY.get(source, _FALLBACK_PRIORITY)
+
+
+def training_rows_only(rows_by_source: dict[str, list]) -> dict[str, list]:
+    """按训练白名单过滤分源取数结果，非白名单源整组剔除（训练/预测装载入口用）。"""
+    return {source: rows for source, rows in rows_by_source.items() if source in TRAINING_SOURCES}

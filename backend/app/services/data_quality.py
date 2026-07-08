@@ -18,7 +18,7 @@ from statistics import median
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.source_policy import SOURCE_META, source_priority
+from app.core.source_policy import SOURCE_META, source_priority, training_rows_only
 from app.ml.dataset import build_multi_source_series
 from app.ml.train import ModelStore
 from app.models.city import City
@@ -368,7 +368,11 @@ async def _compute_data_fingerprint(session: AsyncSession, active_meta: dict) ->
         if not region_ids:
             return None
 
-    rows_by_source = await _load_source_rows(session, region_type, region_ids)
+    # 指纹口径必须与训练一致：训练走白名单（creprice-only），指纹重算同样只喂
+    # 白名单源，否则库里多源数据会让指纹恒不一致、新鲜度永远 stale。
+    rows_by_source = training_rows_only(
+        await _load_source_rows(session, region_type, region_ids)
+    )
     index_rows = await _load_index_rows(session, region_type, region_ids)
     if not any(rows_by_source.values()):
         return None

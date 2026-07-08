@@ -13,6 +13,8 @@ const source = useSourceStore()
 const history = ref<TrendPoint[]>([])
 const prediction = ref<PredictionResponse | null>(null)
 const errorMessage = ref('')
+// 空窗期（无活跃模型）：显式「数据积累中」友好空态，区别于一般错误
+const noModel = ref(false)
 const loading = ref(false)
 
 const regionType = computed(() => route.params.regionType as RegionType)
@@ -42,6 +44,7 @@ async function load() {
   }
   loading.value = true
   errorMessage.value = ''
+  noModel.value = false
   prediction.value = null
   try {
     const [trend, pred] = await Promise.all([
@@ -51,7 +54,12 @@ async function load() {
     history.value = trend
     prediction.value = pred
   } catch (error: any) {
-    errorMessage.value = error.response?.data?.detail ?? '加载预测失败，请稍后重试'
+    // 无活跃模型（空窗期）→ 友好空态；其余错误维持原提示
+    if (error.response?.data?.code === 'NO_ACTIVE_MODEL') {
+      noModel.value = true
+    } else {
+      errorMessage.value = error.response?.data?.detail ?? '加载预测失败，请稍后重试'
+    }
   } finally {
     loading.value = false
   }
@@ -105,6 +113,20 @@ watch(() => route.params, load)
       </el-card>
     </template>
 
+    <!-- 空窗期：无活跃模型（旧多源模型已全删，等全量采集完成后重训） -->
+    <el-empty
+      v-else-if="noModel && !loading"
+      description="预测功能数据积累中，暂无可用模型"
+      :image-size="120"
+    >
+      <p class="empty-hint">
+        为保证预测口径一致，训练只采用 creprice 实采数据。待全量数据采集完成后将重新训练并上线预测。
+      </p>
+      <RouterLink to="/rank">
+        <el-button type="primary">返回排行榜</el-button>
+      </RouterLink>
+    </el-empty>
+
     <el-empty v-else-if="errorMessage && !loading" :description="errorMessage">
       <RouterLink to="/rank">
         <el-button type="primary">返回排行榜</el-button>
@@ -122,6 +144,14 @@ watch(() => route.params, load)
 
 .src-alert {
   margin-bottom: 16px;
+}
+
+.empty-hint {
+  max-width: 420px;
+  margin: 0 auto 12px;
+  color: #909399;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .meta-bar {

@@ -29,6 +29,7 @@ from app.schemas.predict import (
     PredictionResponse,
     TrainRequest,
 )
+from app.core.source_policy import training_rows_only
 from app.services import job_runner
 from app.services.price_select import select_index_snapshots, select_source_snapshots
 
@@ -42,8 +43,10 @@ def _store() -> ModelStore:
 async def _load_source_rows(
     db: AsyncSession, region_type: str | None = None, region_ids: list[int] | None = None
 ) -> dict[str, list[dict]]:
-    # 分源取数（不合并）：训练集构建器需要各源完整序列做口径校准与年度扩充
-    by_source = await select_source_snapshots(db, region_type, region_ids)
+    # 分源取数（不合并）：训练集构建器需要各源完整序列做口径校准与年度扩充。
+    # creprice-first 白名单在此装载入口过滤：训练与预测只认 TRAINING_SOURCES 的源，
+    # 非白名单源（58/kaggle/anjuke）的行进不了训练/预测集（构建器多源路径保留但走不到）。
+    by_source = training_rows_only(await select_source_snapshots(db, region_type, region_ids))
     return {
         source: [
             {
@@ -90,7 +93,12 @@ async def get_prediction(
 
     loaded = _store().load_active()
     if loaded is None:
-        raise ApiError(404, "模型尚未训练，请先训练模型", "PREDICTION_NOT_FOUND")
+        # creprice-first 空窗期：旧多源模型已全删，等全量采集完成后重训 v1.8
+        raise ApiError(
+            404,
+            "预测功能数据积累中，暂无可用模型（等 creprice 全量采集完成后重新训练）",
+            "NO_ACTIVE_MODEL",
+        )
     model, meta = loaded
 
     # 预测取数与训练同路径：分源取数 → 多源构建（年度城市校准+插值后亦可预测）。

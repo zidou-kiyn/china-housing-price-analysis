@@ -396,31 +396,46 @@ class TestPredict:
         assert resp.json()["code"] == "PREDICTION_NOT_FOUND"
 
 
-class TestPredictCoverage:
-    """预测覆盖与治理（ml-predict-coverage）：年度城市、混合口径、旧版本行清理。"""
+class TestPredictNoActiveModel:
+    """空窗期（旧模型全删，等重训）：无活跃模型时预测 API 返回 404 + NO_ACTIVE_MODEL，不 500。"""
 
-    async def test_annual_only_city_returns_annual_interp(
+    async def test_predict_no_active_model_404(
+        self, client, auth_headers, qz_city_id, monkeypatch, tmp_path
+    ):
+        # 指向空模型目录 → load_active() 为 None（旧模型已全删的空窗态）
+        monkeypatch.setattr(settings, "ml_model_dir", str(tmp_path / "empty_models"))
+        resp = await client.get(
+            f"/api/v1/predict/{qz_city_id}?region_type=city", headers=auth_headers
+        )
+        assert resp.status_code == 404
+        assert resp.json()["code"] == "NO_ACTIVE_MODEL"
+
+
+class TestPredictCoverage:
+    """预测覆盖与治理：creprice-first 白名单下的覆盖塌缩 + 旧版本行清理。
+
+    方针（07-08）：训练/预测只认 creprice。年度插值/混合口径预测路径保留但被白名单
+    挡在上游、走不到——年度校准/赋形的直接覆盖见 tests/ml/test_dataset.py。
+    """
+
+    async def test_annual_only_city_not_predictable(
         self, client, auth_headers, trained_model
     ):
-        """仅年度源的城市能预测（此前 404），标注 annual_interp。"""
+        """creprice-first 覆盖塌缩：仅年度源（无 creprice）的城市不再可预测 → 404。"""
         annual_only, _ = await _city_ids_by_source_mix()
         if annual_only is None:
             pytest.skip("库中无仅年度源的城市")
         resp = await client.get(
             f"/api/v1/predict/{annual_only}?region_type=city", headers=auth_headers
         )
-        try:
-            assert resp.status_code == 200, resp.text
-            data = resp.json()
-            assert data["data_quality"] == "annual_interp"
-            assert len(data["predictions"]) == 3
-            for p in data["predictions"]:
-                assert p["confidence_lower"] <= p["predicted_price"] <= p["confidence_upper"]
-        finally:
-            await _cleanup_predictions("city", annual_only, [trained_model["model_version"]])
+        # 白名单滤掉 58/kaggle → 该城市无 creprice 历史 → 无可用序列
+        assert resp.status_code == 404
+        assert resp.json()["code"] == "PREDICTION_NOT_FOUND"
 
-    async def test_mixed_source_city_returns_mixed(self, client, auth_headers, trained_model):
-        """月度+年度双源城市（如北京）：序列缺口由年度校准值补齐，标注 mixed。"""
+    async def test_mixed_source_city_predicts_monthly_only(
+        self, client, auth_headers, trained_model
+    ):
+        """曾经的月度+年度混合城市：白名单下只喂 creprice → 只能是 monthly，绝不 mixed/annual_interp。"""
         _, mixed = await _city_ids_by_source_mix()
         if mixed is None:
             pytest.skip("库中无月度+年度混合源的城市")
@@ -428,8 +443,10 @@ class TestPredictCoverage:
             f"/api/v1/predict/{mixed}?region_type=city", headers=auth_headers
         )
         try:
-            assert resp.status_code == 200, resp.text
-            assert resp.json()["data_quality"] == "mixed"
+            # creprice 月度段够长则 monthly 预测；不够则 404——均不再出现 mixed/annual_interp
+            assert resp.status_code in (200, 404), resp.text
+            if resp.status_code == 200:
+                assert resp.json()["data_quality"] == "monthly"
         finally:
             await _cleanup_predictions("city", mixed, [trained_model["model_version"]])
 

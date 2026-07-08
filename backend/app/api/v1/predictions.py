@@ -3,7 +3,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +12,6 @@ from app.core.config import settings
 from app.core.database import async_session_factory
 from app.core.errors import ApiError
 from app.ml.dataset import build_multi_source_series
-from app.ml.features import build_region_series
 from app.ml.predict import rolling_predict
 from app.ml.train import ModelStore
 from app.ml.train import train_model as run_training
@@ -29,29 +28,13 @@ from app.schemas.predict import (
     TrainRequest,
 )
 from app.services import job_runner
-from app.services.price_select import select_merged_snapshots, select_source_snapshots
+from app.services.price_select import select_source_snapshots
 
 router = APIRouter(tags=["predictions"])
 
 
 def _store() -> ModelStore:
     return ModelStore(settings.ml_model_dir)
-
-
-async def _load_snapshot_rows(
-    db: AsyncSession, region_type: str | None = None, region_ids: list[int] | None = None
-) -> list[dict]:
-    # 合并选择：多源同月按优先级取一行，避免特征序列出现重复月份（预测取数用）
-    snaps = await select_merged_snapshots(db, region_type, region_ids)
-    return [
-        {
-            "region_type": s.region_type,
-            "region_id": s.region_id,
-            "year_month": s.year_month,
-            "supply_price": s.supply_price,
-        }
-        for s in snaps
-    ]
 
 
 async def _load_source_rows(
@@ -91,16 +74,30 @@ async def get_prediction(
         raise ApiError(404, "模型尚未训练，请先训练模型", "PREDICTION_NOT_FOUND")
     model, meta = loaded
 
-    rows = await _load_snapshot_rows(db, region_type, [region_id])
-    series_list = build_region_series(rows)
+    # 预测取数与训练同路径：分源取数 → 多源构建（年度城市校准+插值后亦可预测）。
+    # 校准一致性强约束：ratio_curve 必须复用训练时曲线（meta["dataset"]），禁止
+    # 用单区域数据重估；旧模型 meta 无 dataset 字段时现场估计（override=None），
+    # 与其训练时未做校准的行为一致（单区域通常无重叠对，即不校准）。
+    rows_by_source = await _load_source_rows(db, region_type, [region_id])
+    ratio_curve = (meta.get("dataset") or {}).get("ratio_curve")
+    series_list, _ = build_multi_source_series(rows_by_source, ratio_curve_override=ratio_curve)
     if not series_list:
         raise ApiError(404, "该区域暂无可用历史数据", "PREDICTION_NOT_FOUND")
 
     try:
-        points = rolling_predict(model, meta, series_list[0], months_ahead)
+        points, data_quality = rolling_predict(model, meta, series_list[0], months_ahead)
     except ValueError as exc:
         raise ApiError(404, str(exc), "PREDICTION_NOT_FOUND")
 
+    # 预测表治理：同 (region, model_name) 只保留当前版本，旧版本行同事务先删后插
+    await db.execute(
+        delete(Prediction).where(
+            Prediction.region_type == region_type,
+            Prediction.region_id == region_id,
+            Prediction.model_name == meta["model_name"],
+            Prediction.model_version != meta["version"],
+        )
+    )
     for p in points:
         stmt = pg_insert(Prediction).values(
             region_type=region_type,
@@ -129,6 +126,7 @@ async def get_prediction(
         region_name=region.name,
         model_name=meta["model_name"],
         model_version=meta["version"],
+        data_quality=data_quality,
         predictions=[
             PredictionPointOut(
                 target_month=p.target_month,

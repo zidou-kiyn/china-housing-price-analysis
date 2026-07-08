@@ -16,6 +16,23 @@ const loading = ref(false)
 const regionType = computed(() => route.params.regionType as RegionType)
 const regionId = computed(() => Number(route.params.id))
 
+// 数据口径标注（沿用走势图「年度·挂牌」口径标签的文案风格）
+const qualityTag = computed(() => {
+  if (prediction.value?.data_quality === 'annual_interp')
+    return {
+      type: 'warning' as const,
+      label: '年度挂牌推算',
+      tip: '该区域缺少月度行情数据，预测基于年度挂牌数据校准插值推算，置信区间已放大',
+    }
+  if (prediction.value?.data_quality === 'mixed')
+    return {
+      type: 'info' as const,
+      label: '混合口径',
+      tip: '历史序列由月度行情与年度挂牌校准数据混合构成',
+    }
+  return null
+})
+
 async function load() {
   if (!regionId.value || !['city', 'district'].includes(regionType.value)) {
     errorMessage.value = '无效的区域参数'
@@ -50,6 +67,9 @@ watch(() => route.params, load)
         <el-tag size="small" type="info">
           模型：{{ prediction.model_name }} {{ prediction.model_version }}
         </el-tag>
+        <el-tooltip v-if="qualityTag" :content="qualityTag.tip" placement="top">
+          <el-tag size="small" :type="qualityTag.type">{{ qualityTag.label }}</el-tag>
+        </el-tooltip>
       </div>
 
       <el-card shadow="hover">

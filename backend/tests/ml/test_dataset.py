@@ -178,6 +178,22 @@ class TestBuildMultiSourceSeries:
         assert rs.interp_flags[j] == 1 and rs.weights[j] == ANNUAL_SAMPLE_WEIGHT
         assert rs.prices[-1] == pytest.approx(20000)  # 2018 超出曲线 → 沿用 2016 比值
 
+    def test_ratio_curve_override_skips_reestimation(self):
+        """预测路径复用训练时曲线：传 override 即不重估；空 dict = 训练时未校准。"""
+        monthly = _monthly_rows(1, "2015-01", 24, base=20000, step=0)  # 与年度构成重叠对
+        annual = _annual_rows(1, {"2015": 25000, "2016": 25000, "2018": 25000})
+        rows = {"kaggle_lianjia": monthly, "listing_annual_58": annual}
+
+        series_list, meta = build_multi_source_series(rows, ratio_curve_override={"2015": 0.5})
+        assert meta.ratio_curve == {"2015": 0.5}  # 未重估（重估应得 0.8）
+        assert meta.ratio_pairs == 0
+        rs = series_list[0]
+        j = rs.months.index("2017-06")  # 年度缺口段用 override 校准：25000 × 0.5
+        assert rs.prices[j] == pytest.approx(12500)
+
+        _, meta_empty = build_multi_source_series(rows, ratio_curve_override={})
+        assert meta_empty.ratio_curve == {} and meta_empty.calibrated_rows == 0
+
     def test_two_monthly_sources_dedup_by_priority(self):
         creprice = _monthly_rows(1, "2020-01", 12, base=10000, step=0)
         kaggle = _monthly_rows(1, "2020-06", 12, base=20000, step=0)

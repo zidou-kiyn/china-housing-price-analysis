@@ -14,6 +14,8 @@ class PredictionResponse(BaseModel):
     region_name: str
     model_name: str
     model_version: str
+    # 依据序列的口径：monthly=真实月度 | annual_interp=年度挂牌插值 | mixed=混合
+    data_quality: str
     predictions: list[PredictionPointOut]
 
     model_config = {"protected_namespaces": ()}

@@ -341,6 +341,16 @@ def train_model(
     baselines = _baseline_metrics(frame_val, chosen_lags)
     metrics_real_monthly, validation_strata = _stratified_metrics(frame_val, y_pred)
 
+    # 相对残差（residual 策略的置信区间随价位缩放）：与 _mape 同口径屏蔽零价样本，
+    # 防止脏数据把 nan/inf 写进 meta 导致预测端 round() 崩溃；全零时置 None（预测
+    # 端退回绝对 resid_std 算式）
+    nonzero = y_val != 0
+    resid_std_pct = (
+        round(float(np.std((y_val[nonzero] - y_pred[nonzero]) / y_val[nonzero])), 4)
+        if nonzero.any()
+        else None
+    )
+
     version = store.next_version(algorithm)
     meta = {
         "model_name": algorithm,
@@ -359,6 +369,7 @@ def train_model(
         "city_codes": city_codes or [],
         "ci_strategy": "per_tree" if algorithm == "random_forest" else "residual",
         "resid_std": round(float(np.std(y_val - y_pred)), 2),
+        "resid_std_pct": resid_std_pct,
         "cv": cv_info,
         "dataset": dataset_meta,
     }

@@ -205,6 +205,7 @@ def _fingerprint(series_list: list[RegionSeries]) -> str:
 
 def build_multi_source_series(
     rows_by_source: dict[str, list[dict]],
+    ratio_curve_override: dict[str, float] | None = None,
 ) -> tuple[list[RegionSeries], DatasetMeta]:
     """月度/年度分源构建 + 合并去重（真实月度优先），返回 (序列, DatasetMeta)。
 
@@ -212,6 +213,10 @@ def build_multi_source_series(
     月度源沿用 build_region_series 现有逻辑（插值 + 缺失率门槛）；年度源校准后
     插值扩充；同 (region, month) 真实月度值优先，不产生重复行。
     仅有单一月度源且无年度数据的区域原样返回（纯月度路径不回退）。
+
+    ratio_curve_override 供预测路径传入训练时的曲线（模型 meta["dataset"]
+    ["ratio_curve"]）：传入即跳过重估——训练/推理校准必须一致，单区域重估
+    会产生偏差；空 dict 表示训练时无校准，推理同样不校准。
     """
     cleaned = {
         source: [r for r in rows if r.get("supply_price") is not None]
@@ -229,7 +234,10 @@ def build_multi_source_series(
             "max_month": max(months),
         }
 
-    ratio_curve, ratio_pairs = estimate_basis_ratio_curve(cleaned)
+    if ratio_curve_override is not None:
+        ratio_curve, ratio_pairs = dict(ratio_curve_override), 0  # 复用外部曲线，不重估
+    else:
+        ratio_curve, ratio_pairs = estimate_basis_ratio_curve(cleaned)
 
     monthly_sources = sorted(
         (s for s in cleaned if _source_meta(s)["granularity"] == "monthly"),

@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.ml.features import build_region_series, shift_month
-from app.ml.predict import rolling_predict
+from app.ml.features import RegionSeries, build_region_series, feature_columns, shift_month
+from app.ml.predict import ANNUAL_CI_PENALTY, rolling_predict
 from app.ml.train import (
     ModelStore,
     _baseline_metrics,
@@ -236,7 +236,9 @@ class TestXgboostRollingPredict:
         series = build_region_series(_synthetic_rows())
         train_model("xgboost", series, store)
         model, meta = store.load_latest("xgboost")
-        points = rolling_predict(model, meta, series[0], months_ahead=3)
+        points, data_quality = rolling_predict(model, meta, series[0], months_ahead=3)
+        assert data_quality == "monthly"
+        assert meta["resid_std_pct"] >= 0  # 新训模型带相对残差
         assert len(points) == 3
         for p in points:
             assert p.confidence_lower <= p.predicted_price <= p.confidence_upper
@@ -246,7 +248,8 @@ class TestXgboostRollingPredict:
         train_model("xgboost", series, store)
         model, meta = store.load_latest("xgboost")
         last_price = series[0].prices[-1]
-        for p in rolling_predict(model, meta, series[0], months_ahead=3):
+        points, _ = rolling_predict(model, meta, series[0], months_ahead=3)
+        for p in points:
             assert abs(p.predicted_price - last_price) / last_price < 0.2
 
 
@@ -254,8 +257,9 @@ class TestRollingPredict:
     def test_three_month_horizon(self, store, trained):
         series, meta = trained
         model, meta = store.load_latest("random_forest")
-        points = rolling_predict(model, meta, series[0], months_ahead=3)
+        points, data_quality = rolling_predict(model, meta, series[0], months_ahead=3)
 
+        assert data_quality == "monthly"  # interp_flags 为 None → 纯月度
         assert len(points) == 3
         last_month = series[0].months[-1]
         assert [p.target_month for p in points] == [
@@ -267,13 +271,14 @@ class TestRollingPredict:
     def test_confidence_interval_contains_prediction(self, store, trained):
         series, _ = trained
         model, meta = store.load_latest("random_forest")
-        for p in rolling_predict(model, meta, series[0], months_ahead=3):
+        points, _ = rolling_predict(model, meta, series[0], months_ahead=3)
+        for p in points:
             assert p.confidence_lower <= p.predicted_price <= p.confidence_upper
 
     def test_prediction_in_plausible_range(self, store, trained):
         series, _ = trained
         model, meta = store.load_latest("random_forest")
-        points = rolling_predict(model, meta, series[0], months_ahead=3)
+        points, _ = rolling_predict(model, meta, series[0], months_ahead=3)
         last_price = series[0].prices[-1]
         for p in points:
             assert abs(p.predicted_price - last_price) / last_price < 0.2
@@ -284,3 +289,92 @@ class TestRollingPredict:
         short = build_region_series(_synthetic_rows(regions=1, months=8))[0]
         with pytest.raises(ValueError):
             rolling_predict(model, meta, short, months_ahead=3)
+
+
+class _StubResidualModel:
+    """residual 策略打桩模型：恒预测 10000，便于手算区间。"""
+
+    def predict(self, x):
+        return np.array([10000.0])
+
+
+def _stub_series(interp_flags: list[int] | None) -> RegionSeries:
+    months, prices, m = [], [], "2020-01"
+    for t in range(14):
+        months.append(m)
+        prices.append(10000.0 + t)
+        m = shift_month(m, 1)
+    return RegionSeries(
+        region_type="city",
+        region_id=1,
+        months=months,
+        prices=prices,
+        interp_flags=interp_flags,
+    )
+
+
+def _stub_meta(**overrides) -> dict:
+    meta = {
+        "n_lags": 3,
+        "features": feature_columns(3),
+        "ci_strategy": "residual",
+        "resid_std": 500.0,
+    }
+    meta.update(overrides)
+    return meta
+
+
+class TestDataQualityAndInterval:
+    def test_flags_none_is_monthly_with_absolute_interval(self):
+        """旧 meta（无 resid_std_pct）：绝对残差算式，flags None → monthly。"""
+        points, data_quality = rolling_predict(
+            _StubResidualModel(), _stub_meta(), _stub_series(None), months_ahead=1
+        )
+        assert data_quality == "monthly"
+        # margin = 1.96 × 500 = 980
+        assert (points[0].confidence_lower, points[0].confidence_upper) == (9020, 10980)
+
+    def test_all_zero_flags_is_monthly(self):
+        _, data_quality = rolling_predict(
+            _StubResidualModel(), _stub_meta(), _stub_series([0] * 14), months_ahead=1
+        )
+        assert data_quality == "monthly"
+
+    def test_all_annual_flags_penalized(self):
+        """annual_interp：绝对残差 × ANNUAL_CI_PENALTY。"""
+        points, data_quality = rolling_predict(
+            _StubResidualModel(), _stub_meta(), _stub_series([1] * 14), months_ahead=1
+        )
+        assert data_quality == "annual_interp"
+        # margin = 1.96 × 500 × 1.5 = 1470
+        assert ANNUAL_CI_PENALTY == 1.5
+        assert (points[0].confidence_lower, points[0].confidence_upper) == (8530, 11470)
+
+    def test_mixed_flags_no_penalty(self):
+        points, data_quality = rolling_predict(
+            _StubResidualModel(), _stub_meta(), _stub_series([1] * 7 + [0] * 7), months_ahead=1
+        )
+        assert data_quality == "mixed"
+        assert (points[0].confidence_lower, points[0].confidence_upper) == (9020, 10980)
+
+    def test_resid_std_pct_relative_interval(self):
+        """新 meta：margin = 1.96 × resid_std_pct × y_hat，随价位缩放。"""
+        points, _ = rolling_predict(
+            _StubResidualModel(),
+            _stub_meta(resid_std_pct=0.02),
+            _stub_series(None),
+            months_ahead=1,
+        )
+        # margin = 1.96 × 0.02 × 10000 = 392
+        assert (points[0].confidence_lower, points[0].confidence_upper) == (9608, 10392)
+
+    def test_resid_std_pct_with_annual_penalty(self):
+        points, data_quality = rolling_predict(
+            _StubResidualModel(),
+            _stub_meta(resid_std_pct=0.02),
+            _stub_series([1] * 14),
+            months_ahead=1,
+        )
+        assert data_quality == "annual_interp"
+        # margin = 392 × 1.5 = 588
+        assert (points[0].confidence_lower, points[0].confidence_upper) == (9412, 10588)

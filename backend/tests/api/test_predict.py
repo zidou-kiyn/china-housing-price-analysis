@@ -6,12 +6,14 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import settings
+from app.core.source_policy import SOURCE_META
 from app.models.admin_job import AdminJob
 from app.models.prediction import Prediction
+from app.models.price_snapshot import PriceSnapshot
 
 pytestmark = [pytest.mark.slow, pytest.mark.asyncio(loop_scope="session")]
 
@@ -79,6 +81,56 @@ async def _district_with_full_history(client, auth_headers) -> int:
     )
     items = [i for i in resp.json()["items"] if i["supply_price"] is not None]
     return items[0]["region_id"]
+
+
+async def _city_ids_by_source_mix() -> tuple[int | None, int | None]:
+    """扫描城市级快照的源构成，返回 (仅年度源城市, 月度+年度混合城市)；缺则 None。"""
+    engine = create_async_engine(settings.database_url)
+    sf = async_sessionmaker(engine, expire_on_commit=False)
+    async with sf() as s:
+        rows = (
+            await s.execute(
+                select(PriceSnapshot.region_id, PriceSnapshot.source, func.count())
+                .where(PriceSnapshot.region_type == "city")
+                .group_by(PriceSnapshot.region_id, PriceSnapshot.source)
+            )
+        ).all()
+    await engine.dispose()
+
+    by_city: dict[int, dict[str, int]] = {}
+    for region_id, source, n in rows:
+        by_city.setdefault(region_id, {})[source] = n
+
+    def _gran(source: str) -> str:
+        return SOURCE_META.get(source, {}).get("granularity", "monthly")
+
+    annual_only = mixed = None
+    for region_id in sorted(by_city):
+        sources = by_city[region_id]
+        grans = {_gran(s) for s in sources}
+        if annual_only is None and grans == {"annual"} and sum(sources.values()) >= 3:
+            annual_only = region_id  # ≥3 个年度点 → 插值后 ≥25 个月，够预测窗口
+        if mixed is None and grans == {"annual", "monthly"}:
+            monthly_rows = sum(n for s, n in sources.items() if _gran(s) == "monthly")
+            if monthly_rows >= 12:  # 月度段够长，保证真实月度序列不被缺失率门槛丢弃
+                mixed = region_id
+    return annual_only, mixed
+
+
+async def _cleanup_predictions(region_type: str, region_id: int, model_versions: list[str]) -> None:
+    """按 (region, 本测试所训版本) 精确清理落库预测行，不动库中其它行。"""
+    engine = create_async_engine(settings.database_url)
+    sf = async_sessionmaker(engine, expire_on_commit=False)
+    async with sf() as s:
+        await s.execute(
+            delete(Prediction).where(
+                Prediction.region_type == region_type,
+                Prediction.region_id == region_id,
+                Prediction.model_version.in_(model_versions),
+            )
+        )
+        await s.commit()
+    await engine.dispose()
 
 
 class TestTrain:
@@ -285,6 +337,7 @@ class TestPredict:
         assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["model_version"] == trained_model["model_version"]
+        assert data["data_quality"] == "monthly"  # 泉州区县仅 creprice 月度源
         assert len(data["predictions"]) == 3
         for p in data["predictions"]:
             assert p["confidence_lower"] <= p["predicted_price"] <= p["confidence_upper"]
@@ -341,3 +394,91 @@ class TestPredict:
         )
         assert resp.status_code == 404
         assert resp.json()["code"] == "PREDICTION_NOT_FOUND"
+
+
+class TestPredictCoverage:
+    """预测覆盖与治理（ml-predict-coverage）：年度城市、混合口径、旧版本行清理。"""
+
+    async def test_annual_only_city_returns_annual_interp(
+        self, client, auth_headers, trained_model
+    ):
+        """仅年度源的城市能预测（此前 404），标注 annual_interp。"""
+        annual_only, _ = await _city_ids_by_source_mix()
+        if annual_only is None:
+            pytest.skip("库中无仅年度源的城市")
+        resp = await client.get(
+            f"/api/v1/predict/{annual_only}?region_type=city", headers=auth_headers
+        )
+        try:
+            assert resp.status_code == 200, resp.text
+            data = resp.json()
+            assert data["data_quality"] == "annual_interp"
+            assert len(data["predictions"]) == 3
+            for p in data["predictions"]:
+                assert p["confidence_lower"] <= p["predicted_price"] <= p["confidence_upper"]
+        finally:
+            await _cleanup_predictions("city", annual_only, [trained_model["model_version"]])
+
+    async def test_mixed_source_city_returns_mixed(self, client, auth_headers, trained_model):
+        """月度+年度双源城市（如北京）：序列缺口由年度校准值补齐，标注 mixed。"""
+        _, mixed = await _city_ids_by_source_mix()
+        if mixed is None:
+            pytest.skip("库中无月度+年度混合源的城市")
+        resp = await client.get(
+            f"/api/v1/predict/{mixed}?region_type=city", headers=auth_headers
+        )
+        try:
+            assert resp.status_code == 200, resp.text
+            assert resp.json()["data_quality"] == "mixed"
+        finally:
+            await _cleanup_predictions("city", mixed, [trained_model["model_version"]])
+
+    async def test_old_model_version_rows_cleaned(self, client, auth_headers, trained_model):
+        """写入新版本预测后，同 (region, model_name) 的旧版本行被同事务清理。"""
+        region_id = await _district_with_full_history(client, auth_headers)
+        engine = create_async_engine(settings.database_url)
+        sf = async_sessionmaker(engine, expire_on_commit=False)
+        async with sf() as s:
+            s.add(
+                Prediction(
+                    region_type="district",
+                    region_id=region_id,
+                    target_month="2099-01",
+                    predicted_price=1,
+                    confidence_lower=1,
+                    confidence_upper=1,
+                    model_name=trained_model["model_name"],
+                    model_version="v0.0",
+                )
+            )
+            await s.commit()
+        await engine.dispose()
+
+        try:
+            resp = await client.get(
+                f"/api/v1/predict/{region_id}?region_type=district", headers=auth_headers
+            )
+            assert resp.status_code == 200, resp.text
+
+            engine = create_async_engine(settings.database_url)
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            async with sf() as s:
+                versions = (
+                    (
+                        await s.execute(
+                            select(Prediction.model_version).where(
+                                Prediction.region_type == "district",
+                                Prediction.region_id == region_id,
+                                Prediction.model_name == trained_model["model_name"],
+                            )
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+            await engine.dispose()
+            assert set(versions) == {trained_model["model_version"]}  # v0.0 已被清理
+        finally:
+            await _cleanup_predictions(
+                "district", region_id, ["v0.0", trained_model["model_version"]]
+            )

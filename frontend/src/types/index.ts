@@ -127,12 +127,16 @@ export interface PredictionPoint {
   confidence_upper: number | null
 }
 
+// 预测依据序列的口径：真实月度 | 年度挂牌插值 | 混合
+export type PredictDataQuality = 'monthly' | 'annual_interp' | 'mixed'
+
 export interface PredictionResponse {
   region_type: RegionType
   region_id: number
   region_name: string
   model_name: string
   model_version: string
+  data_quality: PredictDataQuality
   predictions: PredictionPoint[]
 }
 

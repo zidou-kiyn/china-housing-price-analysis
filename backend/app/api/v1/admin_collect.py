@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session, require_admin
 from app.collector.base import SourceRegistry
+from app.collector.sources.listing_annual import SOURCES as ANNUAL_SOURCES
 from app.core.database import async_session_factory
 from app.core.errors import ApiError
 from app.models.city import City
@@ -20,6 +21,8 @@ from app.pipeline.loaders import upsert_cities
 from app.pipeline.runner import PipelineRunner
 from app.schemas.admin_job import (
     AdminJobOut,
+    AnnualImportRequest,
+    AnnualImportResult,
     CityCoverageListResponse,
     CityCoverageOut,
     CollectRequest,
@@ -28,7 +31,7 @@ from app.schemas.admin_job import (
     CollectSourceUpdate,
     RefreshCitiesResponse,
 )
-from app.services import geo, job_runner
+from app.services import geo, job_runner, nationwide_import
 from app.services.app_settings import get_collect_source, set_collect_source
 
 router = APIRouter(prefix="/admin/collect", tags=["admin"])
@@ -159,6 +162,25 @@ async def list_city_coverage(
         for city, cnt, latest in rows
     ]
     return CityCoverageListResponse(total=total, page=page, page_size=page_size, items=items)
+
+
+@router.post("/import-annual", response_model=AnnualImportResult)
+async def import_annual_prices(
+    payload: AnnualImportRequest,
+    db: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
+):
+    """导入 58/anjuke 全国城市年度房价（同步执行，~330 城一次 bulk）；未知源 422。"""
+    if payload.source not in ANNUAL_SOURCES:
+        raise ApiError(422, f"未知年度房价源: {payload.source}", "VALIDATION_ERROR")
+    stats = await nationwide_import.import_annual(db, payload.source)
+    return AnnualImportResult(
+        source=stats["source"],
+        matched=stats["matched"],
+        skipped_count=len(stats["skipped"]),
+        skipped_cities=stats["skipped"],
+        snapshots=stats["snapshots"],
+    )
 
 
 async def _resolve_collect_targets(db: AsyncSession, payload: CollectRequest) -> list[str]:

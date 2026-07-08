@@ -11,7 +11,9 @@ from app.collector.sources.creprice import CrepriceSource
 from app.core.database import async_session_factory
 from app.models.admin_job import AdminJob
 from app.models.city import City
+from app.models.price_snapshot import PriceSnapshot
 from app.pipeline.runner import PipelineRunner
+from app.services import nationwide_import
 
 pytestmark = [pytest.mark.slow, pytest.mark.asyncio(loop_scope="session")]
 
@@ -234,6 +236,64 @@ class TestCollectSources:
 
     async def test_sources_forbidden_for_user(self, client, auth_headers):
         resp = await client.get("/api/v1/admin/collect/sources", headers=auth_headers)
+        assert resp.status_code == 403
+
+
+class TestImportAnnual:
+    async def test_import_annual_success(
+        self, client, admin_headers, monkeypatch, fake_cities, tmp_path
+    ):
+        csv_path = tmp_path / "annual.csv"
+        csv_path.write_text(
+            "province,city,year,price_yuan_per_sqm,yoy_pct\n"
+            "测试省,测试城一,2023,7000,\n"
+            "测试省,测试城一,2024,7700,10.0\n"
+            "测试省,难匹配城,2024,5000,\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(nationwide_import, "download_csv", lambda source_key: csv_path)
+
+        try:
+            resp = await client.post(
+                "/api/v1/admin/collect/import-annual",
+                json={"source": "58"},
+                headers=admin_headers,
+            )
+            assert resp.status_code == 200, resp.text
+            data = resp.json()
+            assert data["source"] == "listing_annual_58"
+            assert data["matched"] == 1
+            assert data["skipped_count"] == 1
+            assert data["skipped_cities"] == ["难匹配城"]
+            assert data["snapshots"] == 2
+        finally:
+            # 导入的快照按测试城市 id 清理（城市行由 fake_cities 清理）
+            async with async_session_factory() as s:
+                ids = (
+                    await s.execute(select(City.id).where(City.code.in_(FAKE_CODES)))
+                ).scalars().all()
+                await s.execute(
+                    delete(PriceSnapshot).where(
+                        PriceSnapshot.region_type == "city",
+                        PriceSnapshot.region_id.in_(ids),
+                    )
+                )
+                await s.commit()
+
+    async def test_import_annual_unknown_source_422(self, client, admin_headers):
+        resp = await client.post(
+            "/api/v1/admin/collect/import-annual",
+            json={"source": "no_such"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 422
+
+    async def test_import_annual_forbidden_for_user(self, client, auth_headers):
+        resp = await client.post(
+            "/api/v1/admin/collect/import-annual",
+            json={"source": "58"},
+            headers=auth_headers,
+        )
         assert resp.status_code == 403
 
 

@@ -72,6 +72,22 @@ class CollectSourceUpdate(BaseModel):
     source: str
 
 
+class AnnualImportRequest(BaseModel):
+    """全国年度房价导入：source 为 listing_annual 的 source_key（58 / anjuke）。"""
+
+    source: str = "58"
+
+
+class AnnualImportResult(BaseModel):
+    """全国年度房价导入覆盖统计。"""
+
+    source: str
+    matched: int
+    skipped_count: int
+    skipped_cities: list[str]
+    snapshots: int
+
+
 class CityCoverageOut(BaseModel):
     id: int
     name: str

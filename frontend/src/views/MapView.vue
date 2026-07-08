@@ -4,10 +4,12 @@ import { fetchCities, fetchTrend } from '@/api/price'
 import CitySelect from '@/components/CitySelect.vue'
 import HeatMap from '@/components/HeatMap.vue'
 import TrendLine from '@/components/TrendLine.vue'
+import { useSourceStore } from '@/stores/source'
 import type { City, MapHeatItem, TrendPoint } from '@/types'
 import { loadGeoJson } from '@/utils/geo'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
+const source = useSourceStore()
 const cities = ref<City[]>([])
 const selectedCity = ref<City | null>(null)
 const heatItems = ref<MapHeatItem[]>([])
@@ -20,12 +22,18 @@ const dialogTrend = ref<TrendPoint[]>([])
 
 async function onCityChange(city: City) {
   selectedCity.value = city
+  // 指数源不适用于地图热力（¥/㎡ 热力），不加载热力数据，由模板空态兜底
+  if (source.isIndexSource) {
+    heatItems.value = []
+    geoMissing.value = false
+    return
+  }
   loading.value = true
   try {
     const hasGeo = await loadGeoJson(city.code)
     geoMissing.value = !hasGeo
     if (!hasGeo) return
-    heatItems.value = (await fetchMapHeat(city.code)).data
+    heatItems.value = (await fetchMapHeat(city.code, source.priceSource)).data
   } finally {
     loading.value = false
   }
@@ -33,7 +41,7 @@ async function onCityChange(city: City) {
 
 async function onRegionSelect(item: MapHeatItem) {
   dialogDistrict.value = item
-  dialogTrend.value = await fetchTrend('district', item.region_id, 12)
+  dialogTrend.value = await fetchTrend('district', item.region_id, 12, source.priceSource)
   dialogVisible.value = true
 }
 
@@ -46,6 +54,14 @@ onMounted(async () => {
   const qz = cities.value.find((c) => c.code === 'qz') ?? cities.value[0]
   if (qz) await onCityChange(qz)
 })
+
+// 全局数据源切换：重拉当前城市热力（源硬隔离）
+watch(
+  () => source.current,
+  () => {
+    if (selectedCity.value) onCityChange(selectedCity.value)
+  },
+)
 </script>
 
 <template>
@@ -56,7 +72,15 @@ onMounted(async () => {
     </div>
 
     <el-alert
-      v-if="geoMissing"
+      v-if="source.isIndexSource"
+      title="官方指数源不适用于地图热力（¥/㎡ 热力），请切换回价格源"
+      type="info"
+      :closable="false"
+      show-icon
+      class="geo-alert"
+    />
+    <el-alert
+      v-else-if="geoMissing"
       title="该城市暂无地图数据"
       type="info"
       :closable="false"
@@ -64,7 +88,7 @@ onMounted(async () => {
       class="geo-alert"
     />
 
-    <el-card v-show="!geoMissing" v-loading="loading" shadow="hover">
+    <el-card v-show="!geoMissing && !source.isIndexSource" v-loading="loading" shadow="hover">
       <HeatMap
         v-if="selectedCity && !geoMissing"
         :map-name="selectedCity.code"

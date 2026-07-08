@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
+import { SOURCE_OPTIONS, useSourceStore, type SourceValue } from '@/stores/source'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const source = useSourceStore()
 
 const activeIndex = computed(() => route.path)
 
@@ -30,6 +32,26 @@ function onCommand(command: string) {
         <el-menu-item index="/map">地图热力</el-menu-item>
         <el-menu-item index="/dashboard">大屏</el-menu-item>
       </el-menu>
+
+      <div class="source-switcher">
+        <span class="source-label">数据源</span>
+        <el-select
+          :model-value="source.current"
+          size="small"
+          style="width: 150px"
+          @update:model-value="(v: SourceValue) => source.setSource(v)"
+        >
+          <el-option
+            v-for="opt in SOURCE_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          >
+            <span>{{ opt.label }}</span>
+            <span class="opt-desc">{{ opt.desc }}</span>
+          </el-option>
+        </el-select>
+      </div>
 
       <div class="user-area">
         <template v-if="auth.isLoggedIn">
@@ -84,6 +106,24 @@ function onCommand(command: string) {
 .nav-menu {
   flex: 1;
   border-bottom: none;
+}
+
+.source-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.source-label {
+  color: #606266;
+  font-size: 13px;
+}
+
+.opt-desc {
+  float: right;
+  color: #909399;
+  font-size: 12px;
 }
 
 .user-area {

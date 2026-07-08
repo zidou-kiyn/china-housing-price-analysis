@@ -2,9 +2,11 @@
 import { fetchRank } from '@/api/analytics'
 import { fetchCities } from '@/api/price'
 import CitySelect from '@/components/CitySelect.vue'
+import { useSourceStore } from '@/stores/source'
 import type { City, PriceType, RankItem, RegionType } from '@/types'
 import { onMounted, ref, watch } from 'vue'
 
+const source = useSourceStore()
 const regionType = ref<RegionType>('district')
 const cities = ref<City[]>([])
 const selectedCity = ref<City | null>(null)
@@ -17,6 +19,12 @@ const sortOrder = ref<'asc' | 'desc'>('desc')
 const loading = ref(false)
 
 async function loadRank() {
+  // 指数源不适用于排行（¥/㎡ 榜），空态兜底不发请求
+  if (source.isIndexSource) {
+    items.value = []
+    total.value = 0
+    return
+  }
   if (regionType.value === 'district' && !selectedCity.value) return
   loading.value = true
   try {
@@ -27,6 +35,7 @@ async function loadRank() {
       sort_order: sortOrder.value,
       page: page.value,
       page_size: pageSize.value,
+      source: source.priceSource,
     })
     items.value = resp.items
     total.value = resp.total
@@ -63,7 +72,7 @@ onMounted(async () => {
   await loadRank()
 })
 
-watch([regionType, selectedCity, page, pageSize], loadRank)
+watch([regionType, selectedCity, page, pageSize, () => source.current], loadRank)
 </script>
 
 <template>
@@ -81,7 +90,17 @@ watch([regionType, selectedCity, page, pageSize], loadRank)
       />
     </div>
 
+    <el-alert
+      v-if="source.isIndexSource"
+      type="info"
+      :closable="false"
+      show-icon
+      title="官方指数源不适用于排行榜（¥/㎡ 榜单），请切换回价格源"
+      class="src-alert"
+    />
+
     <el-table
+      v-else
       v-loading="loading"
       :data="items"
       :default-sort="{ prop: 'supply_price', order: 'descending' }"
@@ -121,7 +140,12 @@ watch([regionType, selectedCity, page, pageSize], loadRank)
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column v-if="regionType === 'district'" label="操作" width="90">
+      <!-- 预测仅基于 creprice 实采数据，入口仅在 creprice 源下可见（R5） -->
+      <el-table-column
+        v-if="regionType === 'district' && source.isCreprice"
+        label="操作"
+        width="90"
+      >
         <template #default="{ row }">
           <RouterLink v-if="row.supply_price != null" :to="`/predict/district/${row.region_id}`">
             <el-button link type="primary" size="small">预测</el-button>
@@ -152,6 +176,10 @@ watch([regionType, selectedCity, page, pageSize], loadRank)
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-bottom: 16px;
+}
+
+.src-alert {
   margin-bottom: 16px;
 }
 

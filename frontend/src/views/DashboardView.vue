@@ -13,8 +13,9 @@ import type {
   MapHeatItem,
   TrendPoint,
 } from '@/types'
+import { useSourceStore } from '@/stores/source'
 import { loadGeoJson } from '@/utils/geo'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 interface SelectedRegion {
   type: 'city' | 'district'
@@ -22,6 +23,7 @@ interface SelectedRegion {
   name: string
 }
 
+const source = useSourceStore()
 const cities = ref<City[]>([])
 const selectedCity = ref<City | null>(null)
 const geoMissing = ref(false)
@@ -40,7 +42,10 @@ const selectedDistrictName = computed(() =>
 async function loadRegionCharts() {
   if (!selected.value) return
   const { type, id } = selected.value
-  const [t, d] = await Promise.all([fetchTrend(type, id, 12), fetchDistribution(type, id)])
+  const [t, d] = await Promise.all([
+    fetchTrend(type, id, 12, source.priceSource),
+    fetchDistribution(type, id, source.priceSource),
+  ])
   trend.value = t
   distribution.value = d
 }
@@ -48,13 +53,22 @@ async function loadRegionCharts() {
 async function onCityChange(city: City) {
   selectedCity.value = city
   selected.value = { type: 'city', id: city.id, name: city.name }
+  // 大屏基于 ¥/㎡（热力/柱状/走势/分布），指数源整屏不适用，清空由模板兜底
+  if (source.isIndexSource) {
+    heatItems.value = []
+    overview.value = []
+    trend.value = []
+    distribution.value = []
+    geoMissing.value = false
+    return
+  }
   loading.value = true
   try {
     const hasGeo = await loadGeoJson(city.code)
     geoMissing.value = !hasGeo
     const [heat, ov] = await Promise.all([
-      hasGeo ? fetchMapHeat(city.code) : Promise.resolve(null),
-      fetchOverview(city.code),
+      hasGeo ? fetchMapHeat(city.code, source.priceSource) : Promise.resolve(null),
+      fetchOverview(city.code, source.priceSource),
       loadRegionCharts(),
     ])
     heatItems.value = heat?.data ?? []
@@ -89,6 +103,14 @@ onMounted(async () => {
   const qz = cities.value.find((c) => c.code === 'qz') ?? cities.value[0]
   if (qz) await onCityChange(qz)
 })
+
+// 全局数据源切换：重拉当前城市大屏数据（源硬隔离）
+watch(
+  () => source.current,
+  () => {
+    if (selectedCity.value) onCityChange(selectedCity.value)
+  },
+)
 </script>
 
 <template>
@@ -102,6 +124,16 @@ onMounted(async () => {
       <span class="hint">点击地图或柱状图区县，走势与分布同步切换</span>
     </div>
 
+    <el-alert
+      v-if="source.isIndexSource"
+      type="info"
+      :closable="false"
+      show-icon
+      title="官方指数源不适用于综合大屏（¥/㎡ 热力 / 柱状 / 走势 / 分布），请切换回价格源"
+      class="src-alert"
+    />
+
+    <template v-else>
     <el-row :gutter="16">
       <el-col :span="12">
         <el-card shadow="hover" class="panel">
@@ -147,6 +179,7 @@ onMounted(async () => {
         </el-card>
       </el-col>
     </el-row>
+    </template>
   </div>
 </template>
 
@@ -167,6 +200,10 @@ onMounted(async () => {
 .hint {
   color: #909399;
   font-size: 13px;
+}
+
+.src-alert {
+  margin-top: 8px;
 }
 
 .second-row {

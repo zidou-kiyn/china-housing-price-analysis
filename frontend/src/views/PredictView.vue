@@ -2,11 +2,13 @@
 import { fetchPrediction } from '@/api/predict'
 import { fetchTrend } from '@/api/price'
 import PredictChart from '@/components/PredictChart.vue'
+import { useSourceStore } from '@/stores/source'
 import type { PredictionResponse, RegionType, TrendPoint } from '@/types'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+const source = useSourceStore()
 
 const history = ref<TrendPoint[]>([])
 const prediction = ref<PredictionResponse | null>(null)
@@ -61,7 +63,17 @@ watch(() => route.params, load)
 
 <template>
   <div class="predict-page" v-loading="loading">
-    <template v-if="prediction">
+    <!-- R5：预测仅基于 creprice 实采数据，非 creprice 源下显式说明 -->
+    <el-alert
+      v-if="!source.isCreprice"
+      type="info"
+      :closable="false"
+      show-icon
+      title="预测仅基于 creprice（禧泰月度）实采数据，请将顶栏数据源切回「禧泰 · 月度」查看预测"
+      class="src-alert"
+    />
+
+    <template v-else-if="prediction">
       <div class="meta-bar">
         <h2>{{ prediction.region_name }} · 未来 {{ prediction.predictions.length }} 个月预测</h2>
         <el-tag size="small" type="info">
@@ -106,6 +118,10 @@ watch(() => route.params, load)
   max-width: 1000px;
   margin: 0 auto;
   padding: 20px;
+}
+
+.src-alert {
+  margin-bottom: 16px;
 }
 
 .meta-bar {

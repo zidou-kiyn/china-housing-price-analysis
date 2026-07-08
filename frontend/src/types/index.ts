@@ -27,6 +27,12 @@ export interface TrendSeries {
   points: TrendPoint[]
 }
 
+export interface IndexTrendPoint {
+  year_month: string
+  /** 房价指数值（单位=指数非价格，基准 100），NBS 指数源专用 */
+  index_value: number
+}
+
 export interface DistributionItem {
   price_range_low: number
   price_range_high: number

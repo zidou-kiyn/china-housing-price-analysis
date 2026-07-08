@@ -15,6 +15,15 @@ class TrendPoint(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TrendSeries(BaseModel):
+    """按数据源拆分的走势序列（/prices/trend?split=true）。"""
+
+    source: str
+    granularity: str  # monthly | annual
+    basis: str  # listing(挂牌) | transaction(成交)
+    points: list[TrendPoint]
+
+
 class DistributionItem(BaseModel):
     price_range_low: int
     price_range_high: int

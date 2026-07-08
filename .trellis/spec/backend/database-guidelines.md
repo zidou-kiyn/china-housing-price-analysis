@@ -64,6 +64,16 @@ Real contracts from the multi-source collection work (2026-07, updated after sou
 - **Listing→transaction calibration is a per-year ratio curve** (estimated from overlapping (region, month) pairs, median per year; nearest-year outside the overlap range). A single global coefficient is wrong — Beijing's overlap ratio drifts 0.79→1.09 across 2010–2017. The curve used at training time is stored in the model's `meta["dataset"]["ratio_curve"]`; inference-side series construction must reuse that stored curve, never re-estimate.
 - Annual-interpolated samples carry `is_annual_interp=1` and sample weight `ANNUAL_SAMPLE_WEIGHT` (0.3); real monthly points always win over annual-interpolated values for the same (region, month).
 - **Model meta is append-only** (old pickles must keep loading/predicting): new meta fields get optional Pydantic fields (`None` default) in `ModelVersionOut`, and readers use chained `.get`. Since ml-train-eval, meta carries `baselines` (last_value/seasonal naive), `beats_baseline`, `per_region_metrics`, and stratified `metrics_real_monthly` — **quote `metrics_real_monthly`, not the headline `metrics`, when judging a model trained on annual-expanded data**: the full validation set is dominated by smoothed interpolated samples (e.g. 0.25% vs the honest 2.71% MAPE).
+- **NBS index data lives in `price_index_snapshot`** (migration 006), never in
+  `price_snapshot` — index values are floats with multiple口径 per (city, month)
+  (dwelling_type new|second × base_type mom|yoy|fixed). Import via
+  `services/index_import.py` (GitHub CSV, 70-city EN→CN static crosswalk, idempotent);
+  the index source is NOT registered in `SOURCE_PRIORITY`/`SOURCE_META` (it is not a
+  price_snapshot source). ML annual-to-monthly interpolation uses the second-hand
+  mom index to shape segments between annual anchors (chain-relink + geometric
+  drift correction, anchors preserved exactly; any missing month in a segment falls
+  back to linear for that whole segment). `DatasetMeta.shaping` records
+  `{nbs_index: n, linear: m}` city counts.
 - **Predict path (`GET /predict`) uses the same builder as training** (ml-predict-coverage): `select_source_snapshots` → `build_multi_source_series` with `ratio_curve_override` from the active model's `meta["dataset"]["ratio_curve"]` (`{}` = trained-without-calibration → skip; missing key = pre-dataset-builder model → on-the-fly estimate, transitional). Response carries `data_quality` (monthly|annual_interp|mixed); `annual_interp` widens the CI by `ANNUAL_CI_PENALTY` (1.5). `prediction` table rows for other model_versions of the same (region, model_name) are deleted lazily in the same transaction as each new write — stale rows for never-re-predicted regions are expected, not a bug.
 
 ---

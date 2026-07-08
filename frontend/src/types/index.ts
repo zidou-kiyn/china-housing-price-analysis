@@ -144,7 +144,7 @@ export interface PredictionResponse {
 
 export interface AdminJob {
   id: number
-  kind: 'collect' | 'geo_fetch' | 'train'
+  kind: 'collect' | 'geo_fetch' | 'train' | 'import_index'
   status: 'pending' | 'running' | 'success' | 'failed'
   payload: Record<string, unknown> | null
   progress_done: number
@@ -250,4 +250,14 @@ export interface AnnualImportResult {
   skipped_count: number
   skipped_cities: string[]
   snapshots: number
+}
+
+// NBS 指数导入统计（import_index 任务 result[0]）
+export interface IndexImportStats {
+  ok: boolean
+  source: string
+  matched: number
+  skipped: string[]
+  rows: number
+  months_range: [string, string] | null
 }

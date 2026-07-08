@@ -3,23 +3,29 @@
 ## 顺序步骤
 
 ### Step 1 — 数据层
-- [ ] 先实测下载 CSV 抽样，核对列名/城市英文名/月份格式与 city.name 实际值
-- [ ] 迁移 006 + PriceIndexSnapshot 模型
-- [ ] index_import.py：下载/解析/crosswalk/幂等 upsert/统计返回
-- [ ] POST /admin/collect/import-index + DataManageView 导入按钮
+- [x] 先实测下载 CSV 抽样，核对列名/城市英文名/月份格式与 city.name 实际值
+      （2026-07-08 实测：70 个英文城市名、year/month 整数列、两指数列无缺失
+      无越界无重复键；70 个对应中文名全部在 city 表有同名行）
+- [x] 迁移 006 + PriceIndexSnapshot 模型（up/down/up 已实测）
+- [x] index_import.py：下载/解析/crosswalk/幂等 upsert/统计返回
+- [x] POST /admin/collect/import-index（job_runner 异步 job）+ DataManageView 导入按钮
 
 ### Step 2 — ML 赋形
-- [ ] select_index_snapshots 服务函数（price_select.py）
-- [ ] dataset.py：index_rows 可选参数、_shape_with_index（链式+几何渐变对齐、
+- [x] select_index_snapshots 服务函数（price_select.py，默认二手环比）
+- [x] dataset.py：index_rows 可选参数、_shape_with_index（链式+几何渐变对齐、
       段级线性回退）、DatasetMeta.shaping 统计
-- [ ] train/predict 两个调用点供数接线
+- [x] train/predict 两个调用点供数接线（predictions.py::_load_index_rows）
 
 ### Step 3 — 测试与实操
-- [ ] 单测：解析、crosswalk 未匹配、幂等、赋形数值（手算小例：锚点保持/
+- [x] 单测：解析、crosswalk 未匹配、幂等、赋形数值（手算小例：锚点保持/
       形状随指数/缺失回退）、shaping 统计、index_rows=None 回归
-- [ ] 实操：导入真实 CSV → 核对北京插值段不再是直线且锚点不变
-- [ ] 重训 RF 一次，对比 metrics_real_monthly（不劣化或有解释）
-- [ ] 全量 pytest + ruff + 前端 build
+- [x] 实操：导入真实 CSV（70 城 25900 行 2011-01~2026-05，重跑幂等）→
+      北京 2019 插值段随指数起伏（非直线），2018/2019/2020-12 锚点值与线性版
+      逐位相等
+- [x] 重训 RF 一次（v1.8，未激活），metrics_real_monthly 不劣化：
+      MAPE 2.71→2.70、MAE 322.79→304.83、R² 0.9376→0.9537
+      （headline mape 0.25→0.31：指数形状比直线更难拟合，属预期）
+- [x] 全量 pytest（345 passed）+ ruff + 前端 build（vue-tsc）通过
 
 ## 验证命令
 

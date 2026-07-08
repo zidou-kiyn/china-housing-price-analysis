@@ -95,6 +95,10 @@ export function importAnnual(source = '58'): Promise<AnnualImportResult> {
   return api.post('/admin/collect/import-annual', { source })
 }
 
+export function importIndex(): Promise<AdminJob> {
+  return api.post('/admin/collect/import-index')
+}
+
 export function submitGeoFetch(payload: {
   city_codes?: string[]
   all_missing?: boolean

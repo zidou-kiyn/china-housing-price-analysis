@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_session, require_admin
 from app.collector.base import SourceRegistry
 from app.collector.sources.listing_annual import SOURCES as ANNUAL_SOURCES
+from app.core.database import async_session_factory
 from app.core.errors import ApiError
 from app.models.city import City
 from app.models.district import District
@@ -29,7 +30,7 @@ from app.schemas.admin_job import (
     CollectSourceUpdate,
     RefreshCitiesResponse,
 )
-from app.services import geo, job_runner, nationwide_import
+from app.services import geo, index_import, job_runner, nationwide_import
 from app.services.app_settings import get_collect_source, set_collect_source
 from app.services.collect_tasks import run_collect
 
@@ -179,6 +180,33 @@ async def import_annual_prices(
         skipped_count=len(stats["skipped"]),
         skipped_cities=stats["skipped"],
         snapshots=stats["snapshots"],
+    )
+
+
+async def _run_import_index(job_id: int) -> None:
+    """指数导入任务体：下载/解析/对齐/upsert 在独立 session，统计写入 job result。
+
+    下载或解析失败直接抛出 → job 显式 failed（不静默空导入）。
+    """
+    async with async_session_factory() as db:
+        stats = await index_import.import_index(db)
+    await job_runner.report_progress(job_id, 1, total=1, result=[{"ok": True, **stats}])
+
+
+@router.post("/import-index", response_model=AdminJobOut, status_code=202)
+async def import_index_prices(
+    _admin: UserAccount = Depends(require_admin),
+):
+    """导入 NBS 70 城月度房价指数（GitHub 直链 CSV，异步 job）。
+
+    约 1.3 万 CSV 行 × 新建/二手两口径 ≈ 2.6 万行 upsert，走后台任务；
+    导入/跳过统计在 job result[0]。
+    """
+    return await job_runner.submit(
+        "import_index",
+        {"source": index_import.INDEX_SOURCE_TAG},
+        _run_import_index,
+        progress_total=1,
     )
 
 

@@ -12,8 +12,9 @@ from app.core.database import async_session_factory
 from app.models.admin_job import AdminJob
 from app.models.city import City
 from app.models.price_snapshot import PriceSnapshot
+from app.models.price_index_snapshot import PriceIndexSnapshot
 from app.pipeline.runner import PipelineRunner
-from app.services import nationwide_import
+from app.services import index_import, nationwide_import
 
 pytestmark = [pytest.mark.slow, pytest.mark.asyncio(loop_scope="session")]
 
@@ -293,6 +294,92 @@ class TestImportAnnual:
             "/api/v1/admin/collect/import-annual",
             json={"source": "58"},
             headers=auth_headers,
+        )
+        assert resp.status_code == 403
+
+
+class TestImportIndex:
+    async def test_import_index_job_success(
+        self, client, admin_headers, monkeypatch, fake_cities, tmp_path
+    ):
+        csv_path = tmp_path / "nbs_index.csv"
+        csv_path.write_text(
+            "city,year,month,new_home_price_index,existing_home_price_index\n"
+            "Testville,2021,1,101.1,100.5\n"
+            "Testville,2021,2,100.2,99.9\n"
+            "Nowhere,2021,1,100.6,100.3\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(index_import, "download_csv", lambda cache_dir=None: csv_path)
+        monkeypatch.setattr(index_import, "NBS_CITY_NAME_MAP", {"Testville": "测试城一"})
+
+        try:
+            resp = await client.post(
+                "/api/v1/admin/collect/import-index", headers=admin_headers
+            )
+            assert resp.status_code == 202, resp.text
+            job = resp.json()
+            assert job["kind"] == "import_index"
+
+            final = await _wait_job_final(client, admin_headers, job["id"])
+            assert final["status"] == "success", final["error"]
+            stats = final["result"][0]
+            assert stats["ok"] is True
+            assert stats["source"] == "nbs_github_changao1"
+            assert stats["matched"] == 1
+            assert stats["skipped"] == ["Nowhere"]
+            assert stats["rows"] == 4  # 2 个月 × 新建/二手
+            assert stats["months_range"] == ["2021-01", "2021-02"]
+        finally:
+            async with async_session_factory() as s:
+                ids = (
+                    await s.execute(select(City.id).where(City.code.in_(FAKE_CODES)))
+                ).scalars().all()
+                await s.execute(
+                    delete(PriceIndexSnapshot).where(
+                        PriceIndexSnapshot.region_type == "city",
+                        PriceIndexSnapshot.region_id.in_(ids),
+                    )
+                )
+                jobs = (
+                    await s.execute(
+                        select(AdminJob).where(AdminJob.kind == "import_index")
+                    )
+                ).scalars()
+                for job_row in jobs:
+                    await s.delete(job_row)
+                await s.commit()
+
+    async def test_import_index_download_failure_fails_job(
+        self, client, admin_headers, monkeypatch
+    ):
+        def broken_download(cache_dir=None):
+            raise RuntimeError("GitHub 下载失败")
+
+        monkeypatch.setattr(index_import, "download_csv", broken_download)
+
+        try:
+            resp = await client.post(
+                "/api/v1/admin/collect/import-index", headers=admin_headers
+            )
+            assert resp.status_code == 202
+            final = await _wait_job_final(client, admin_headers, resp.json()["id"])
+            assert final["status"] == "failed"
+            assert "下载失败" in final["error"]
+        finally:
+            async with async_session_factory() as s:
+                jobs = (
+                    await s.execute(
+                        select(AdminJob).where(AdminJob.kind == "import_index")
+                    )
+                ).scalars()
+                for job_row in jobs:
+                    await s.delete(job_row)
+                await s.commit()
+
+    async def test_import_index_forbidden_for_user(self, client, auth_headers):
+        resp = await client.post(
+            "/api/v1/admin/collect/import-index", headers=auth_headers
         )
         assert resp.status_code == 403
 

@@ -9,6 +9,7 @@ from app.models.district import District
 from app.models.listing import Listing
 from app.models.prediction import Prediction
 from app.models.price_distribution import PriceDistribution
+from app.models.price_index_snapshot import PriceIndexSnapshot
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import UserAccount
 
@@ -24,6 +25,7 @@ __all__ = [
     "Listing",
     "Prediction",
     "PriceDistribution",
+    "PriceIndexSnapshot",
     "PriceSnapshot",
     "UserAccount",
 ]

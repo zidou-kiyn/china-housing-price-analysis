@@ -3,9 +3,11 @@ import {
   fetchCityCoverage,
   fetchCollectSchedule,
   fetchCollectSources,
+  fetchJob,
   fetchJobs,
   fetchProxySetting,
   importAnnual,
+  importIndex,
   refreshCities,
   saveCollectSchedule,
   saveCollectSource,
@@ -21,6 +23,7 @@ import type {
   CityCoverage,
   CollectScheduleState,
   CollectSource,
+  IndexImportStats,
   ProxyTestResult,
 } from '@/types'
 import { ElMessage } from 'element-plus'
@@ -146,6 +149,44 @@ async function onImportAnnual() {
     ElMessage.error(error.response?.data?.detail ?? '年度数据导入失败')
   } finally {
     annualImporting.value = false
+  }
+}
+
+// ---- NBS 70 城指数导入（异步 job，完成后展示统计） ----
+const indexImporting = ref(false)
+const indexResult = ref<IndexImportStats | null>(null)
+
+async function waitJobFinal(jobId: number, timeoutMs = 300_000): Promise<AdminJob> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const job = await fetchJob(jobId)
+    if (job.status === 'success' || job.status === 'failed') return job
+    if (Date.now() > deadline) throw new Error(`任务 #${jobId} 等待超时`)
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+  }
+}
+
+async function onImportIndex() {
+  indexImporting.value = true
+  indexResult.value = null
+  try {
+    const job = await importIndex()
+    ElMessage.success(`NBS 指数导入任务 #${job.id} 已提交`)
+    await loadJobs()
+    const final = await waitJobFinal(job.id)
+    if (final.status === 'success' && final.result?.length) {
+      indexResult.value = final.result[0] as unknown as IndexImportStats
+      ElMessage.success(
+        `指数导入完成：${indexResult.value.matched} 城 / ${indexResult.value.rows} 行指数`,
+      )
+    } else {
+      ElMessage.error(final.error ?? 'NBS 指数导入失败')
+    }
+    await loadJobs()
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail ?? error.message ?? 'NBS 指数导入失败')
+  } finally {
+    indexImporting.value = false
   }
 }
 
@@ -313,6 +354,7 @@ const KIND_LABELS: Record<string, string> = {
   collect: '数据采集',
   geo_fetch: '地图爬取',
   train: '模型训练',
+  import_index: 'NBS 指数导入',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -345,6 +387,10 @@ function jobSummary(job: AdminJob): string {
   const failed = result.filter((r) => !r.ok)
   if (job.error) return job.error
   if (!result.length) return '-'
+  if (job.kind === 'import_index') {
+    const r = result[0] as unknown as IndexImportStats
+    return `${r.matched} 城 / ${r.rows} 行指数（跳过 ${r.skipped?.length ?? 0} 城）`
+  }
   if (!failed.length) return `${result.length} 个城市全部成功`
   return `${result.length - failed.length} 成功 / ${failed.length} 失败（${failed
     .slice(0, 5)
@@ -496,6 +542,9 @@ watch(historyPage, loadJobs)
       <el-button :loading="annualImporting" :disabled="hasActiveJob" @click="onImportAnnual">
         导入全国年度数据
       </el-button>
+      <el-button :loading="indexImporting" :disabled="hasActiveJob" @click="onImportIndex">
+        导入 NBS 70 城指数
+      </el-button>
       <el-button :loading="refreshing" :disabled="hasActiveJob" @click="onRefreshCities">
         刷新城市列表
       </el-button>
@@ -514,6 +563,27 @@ watch(historyPage, loadJobs)
         <template v-if="annualResult.skipped_count">
           （{{ annualResult.skipped_cities.slice(0, 8).join('、')
           }}{{ annualResult.skipped_count > 8 ? ' 等' : '' }}）
+        </template>
+      </template>
+    </el-alert>
+
+    <el-alert
+      v-if="indexResult"
+      type="success"
+      :closable="true"
+      class="annual-alert"
+      @close="indexResult = null"
+    >
+      <template #title>
+        NBS 70 城月度指数（{{ indexResult.source }}）：匹配 {{ indexResult.matched }} 城、写入
+        {{ indexResult.rows }} 行指数
+        <template v-if="indexResult.months_range">
+          （{{ indexResult.months_range[0] }} ~ {{ indexResult.months_range[1] }}）
+        </template>
+        ；{{ indexResult.skipped.length }} 城名未匹配跳过
+        <template v-if="indexResult.skipped.length">
+          （{{ indexResult.skipped.slice(0, 8).join('、')
+          }}{{ indexResult.skipped.length > 8 ? ' 等' : '' }}）
         </template>
       </template>
     </el-alert>

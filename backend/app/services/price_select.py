@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.source_policy import priority_case
+from app.models.price_index_snapshot import PriceIndexSnapshot
 from app.models.price_snapshot import PriceSnapshot
 
 
@@ -67,3 +68,35 @@ async def select_source_snapshots(
     for snap in result.scalars():
         by_source.setdefault(snap.source, []).append(snap)
     return by_source
+
+
+async def select_index_snapshots(
+    session: AsyncSession,
+    region_type: str | None = None,
+    region_ids: list[int] | None = None,
+    dwelling_type: str = "second",
+    base_type: str = "mom",
+) -> list[PriceIndexSnapshot]:
+    """按口径取房价指数行，区域、月份升序。
+
+    默认二手房环比（与年度挂牌均价口径最接近）——供 ML 年度序列月度赋形
+    与跨源审计取数。指数不进 SOURCE_PRIORITY 合并（不是 ¥/㎡ 快照源）。
+    """
+    stmt = (
+        select(PriceIndexSnapshot)
+        .where(
+            PriceIndexSnapshot.dwelling_type == dwelling_type,
+            PriceIndexSnapshot.base_type == base_type,
+        )
+        .order_by(
+            PriceIndexSnapshot.region_type,
+            PriceIndexSnapshot.region_id,
+            PriceIndexSnapshot.year_month,
+        )
+    )
+    if region_type:
+        stmt = stmt.where(PriceIndexSnapshot.region_type == region_type)
+    if region_ids:
+        stmt = stmt.where(PriceIndexSnapshot.region_id.in_(region_ids))
+    result = await session.execute(stmt)
+    return list(result.scalars())

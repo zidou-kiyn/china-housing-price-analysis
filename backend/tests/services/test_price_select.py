@@ -6,9 +6,14 @@ from sqlalchemy import delete
 
 from app.core.database import async_session_factory
 from app.models.city import City
+from app.models.price_index_snapshot import PriceIndexSnapshot
 from app.models.price_snapshot import PriceSnapshot
 from app.pipeline.loaders import upsert_price_snapshots
-from app.services.price_select import select_merged_snapshots, select_source_snapshots
+from app.services.price_select import (
+    select_index_snapshots,
+    select_merged_snapshots,
+    select_source_snapshots,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -80,3 +85,63 @@ async def test_merged_scopes_by_region(multi_source_city):
         all_snaps = await select_merged_snapshots(s, "city")
         keys = [(x.region_id, x.year_month) for x in all_snaps]
         assert len(keys) == len(set(keys))
+
+
+# 不存在的区域 id：指数表无外键，仅本测试写入并自清理
+_IDX_REGION_A, _IDX_REGION_B = 98700001, 98700002
+
+
+@pytest_asyncio.fixture(loop_scope="session")
+async def seeded_index_rows():
+    """seed 两区域多口径指数行，测试后清理。"""
+    rows = [
+        # 区域 A：二手环比两个月 + 新建环比 + 二手同比（应被口径过滤掉）
+        (_IDX_REGION_A, "2021-02", "second", "mom", 100.4),
+        (_IDX_REGION_A, "2021-01", "second", "mom", 100.5),
+        (_IDX_REGION_A, "2021-01", "new", "mom", 101.1),
+        (_IDX_REGION_A, "2021-01", "second", "yoy", 103.0),
+        # 区域 B：二手环比一个月
+        (_IDX_REGION_B, "2021-01", "second", "mom", 99.7),
+    ]
+    async with async_session_factory() as s:
+        for region_id, ym, dwelling, base, value in rows:
+            s.add(
+                PriceIndexSnapshot(
+                    region_type="city", region_id=region_id, year_month=ym,
+                    dwelling_type=dwelling, base_type=base, index_value=value,
+                    source="nbs_github_changao1",
+                )
+            )
+        await s.commit()
+    yield
+    async with async_session_factory() as s:
+        await s.execute(
+            delete(PriceIndexSnapshot).where(
+                PriceIndexSnapshot.region_id.in_([_IDX_REGION_A, _IDX_REGION_B])
+            )
+        )
+        await s.commit()
+
+
+async def test_select_index_snapshots_filters_and_orders(seeded_index_rows):
+    async with async_session_factory() as s:
+        snaps = await select_index_snapshots(s, "city", [_IDX_REGION_A])
+
+    # 默认口径：二手环比；月份升序；新建/同比行被过滤
+    assert [(x.year_month, x.dwelling_type, x.base_type, x.index_value) for x in snaps] == [
+        ("2021-01", "second", "mom", 100.5),
+        ("2021-02", "second", "mom", 100.4),
+    ]
+
+
+async def test_select_index_snapshots_scopes_and_kinds(seeded_index_rows):
+    async with async_session_factory() as s:
+        both = await select_index_snapshots(
+            s, "city", [_IDX_REGION_A, _IDX_REGION_B]
+        )
+        new_only = await select_index_snapshots(
+            s, "city", [_IDX_REGION_A], dwelling_type="new"
+        )
+
+    assert {x.region_id for x in both} == {_IDX_REGION_A, _IDX_REGION_B}
+    assert [(x.year_month, x.index_value) for x in new_only] == [("2021-01", 101.1)]

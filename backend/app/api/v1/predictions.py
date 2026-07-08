@@ -30,7 +30,7 @@ from app.schemas.predict import (
     TrainRequest,
 )
 from app.services import job_runner
-from app.services.price_select import select_source_snapshots
+from app.services.price_select import select_index_snapshots, select_source_snapshots
 
 router = APIRouter(tags=["predictions"])
 
@@ -58,6 +58,23 @@ async def _load_source_rows(
     }
 
 
+async def _load_index_rows(
+    db: AsyncSession, region_type: str | None = None, region_ids: list[int] | None = None
+) -> list[dict]:
+    # NBS 二手房环比指数（与年度挂牌均价口径最接近）：年度序列的月度赋形供数。
+    # 训练与预测同走这里 → 同一构建器得到同样的赋形序列（R5 一致性）。
+    snaps = await select_index_snapshots(db, region_type, region_ids)
+    return [
+        {
+            "region_type": s.region_type,
+            "region_id": s.region_id,
+            "year_month": s.year_month,
+            "index_value": s.index_value,
+        }
+        for s in snaps
+    ]
+
+
 @router.get("/predict/{region_id}", response_model=PredictionResponse)
 async def get_prediction(
     region_id: int,
@@ -81,8 +98,11 @@ async def get_prediction(
     # 用单区域数据重估；旧模型 meta 无 dataset 字段时现场估计（override=None），
     # 与其训练时未做校准的行为一致（单区域通常无重叠对，即不校准）。
     rows_by_source = await _load_source_rows(db, region_type, [region_id])
+    index_rows = await _load_index_rows(db, region_type, [region_id])
     ratio_curve = (meta.get("dataset") or {}).get("ratio_curve")
-    series_list, _ = build_multi_source_series(rows_by_source, ratio_curve_override=ratio_curve)
+    series_list, _ = build_multi_source_series(
+        rows_by_source, ratio_curve_override=ratio_curve, index_rows=index_rows
+    )
     if not series_list:
         raise ApiError(404, "该区域暂无可用历史数据", "PREDICTION_NOT_FOUND")
 
@@ -151,8 +171,9 @@ async def _run_train(
     """训练任务体：读数在独立 session，训练（同步 CPU 密集）放线程池避免阻塞事件循环。"""
     async with async_session_factory() as db:
         rows_by_source = await _load_source_rows(db, region_type, region_ids)
-    # 多源构建：口径校准 + 年度扩充 + 真实月度优先去重
-    series_list, dataset_meta = build_multi_source_series(rows_by_source)
+        index_rows = await _load_index_rows(db, region_type, region_ids)
+    # 多源构建：口径校准 + 年度扩充（指数赋形/线性）+ 真实月度优先去重
+    series_list, dataset_meta = build_multi_source_series(rows_by_source, index_rows=index_rows)
 
     meta = await asyncio.to_thread(
         run_training,

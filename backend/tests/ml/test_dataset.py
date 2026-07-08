@@ -98,7 +98,8 @@ class TestAnnualToMonthly:
     def test_calibrate_then_interpolate(self):
         rows = _annual_rows(1, {"2020": 10000, "2021": 13000, "2022": 12000})
         curve = {"2020": 0.8, "2021": 1.0}
-        series, calibrated = _annual_to_monthly(rows, curve)
+        series, calibrated, shaped = _annual_to_monthly(rows, curve)
+        assert shaped == set()  # 无指数 → 无赋形区域
 
         assert calibrated == 3
         rs = series[0]
@@ -114,9 +115,132 @@ class TestAnnualToMonthly:
 
     def test_empty_curve_means_no_calibration(self):
         rows = _annual_rows(1, {"2020": 10000, "2021": 12000})
-        series, calibrated = _annual_to_monthly(rows, {})
+        series, calibrated, _ = _annual_to_monthly(rows, {})
         assert calibrated == 0
         assert series[0].prices[0] == pytest.approx(10000)
+
+
+def _index_rows(
+    region_id: int,
+    start: str,
+    months: int,
+    overrides: dict[str, float] | None = None,
+    region_type: str = "city",
+) -> list[dict]:
+    """构造连续 NBS 环比指数行（默认 100.0，可逐月覆写）。"""
+    rows, m = [], start
+    for _ in range(months):
+        rows.append(
+            {
+                "region_type": region_type,
+                "region_id": region_id,
+                "year_month": m,
+                "index_value": (overrides or {}).get(m, 100.0),
+            }
+        )
+        m = shift_month(m, 1)
+    return rows
+
+
+class TestIndexShaping:
+    """年度锚点间的 NBS 指数赋形：锚点精确保持、形状随指数、段级回退、悬空段不外推。"""
+
+    def test_anchors_preserved_and_shape_follows_index(self):
+        """手算小例：等值锚点 + 1 月环比 110 → 跳涨后几何渐变回落，锚点不变。"""
+        annual = _annual_rows(1, {"2020": 10000, "2021": 10000})
+        index = _index_rows(1, "2021-01", 12, overrides={"2021-01": 110.0})
+        series_list, meta = build_multi_source_series(
+            {"listing_annual_58": annual}, index_rows=index
+        )
+
+        rs = series_list[0]
+        assert (rs.months[0], rs.months[-1]) == ("2020-12", "2021-12")  # 悬空段不外推
+        assert rs.prices[0] == 10000 and rs.prices[-1] == 10000  # 锚点值精确保持
+        # chain(2021-01)=1.1 恒定 → 隐含 11000，闭合误差 r=10/11 按 (t/12) 几何渐变吸收
+        i = rs.months.index("2021-01")
+        assert rs.prices[i] == pytest.approx(11000 * (10 / 11) ** (1 / 12))
+        j = rs.months.index("2021-06")
+        assert rs.prices[j] == pytest.approx(11000 * (10 / 11) ** (6 / 12))
+        assert rs.prices[i] > rs.prices[j] > rs.prices[-1]  # 非直线：形状忠于指数
+        assert rs.interp_flags == [1] * 13  # 赋形样本仍标年度插值
+        assert rs.weights == [ANNUAL_SAMPLE_WEIGHT] * 13
+        assert meta.shaping == {"nbs_index": 1, "linear": 0}
+
+    def test_missing_index_month_falls_back_linear(self):
+        """段内任一月指数缺失 → 该段整体回退线性（不混拼）。"""
+        annual = _annual_rows(1, {"2020": 10000, "2021": 10000})
+        index = [
+            r
+            for r in _index_rows(1, "2021-01", 12, overrides={"2021-01": 110.0})
+            if r["year_month"] != "2021-03"
+        ]
+        series_list, meta = build_multi_source_series(
+            {"listing_annual_58": annual}, index_rows=index
+        )
+
+        rs = series_list[0]
+        # 两锚等值的线性插值 = 全 10000（若误用指数会出现 1 月跳涨）
+        assert rs.prices[rs.months.index("2021-01")] == pytest.approx(10000)
+        assert rs.prices[rs.months.index("2021-06")] == pytest.approx(10000)
+        assert meta.shaping == {"nbs_index": 0, "linear": 1}
+
+    def test_partial_coverage_shapes_only_covered_segment(self):
+        """指数只覆盖后一段：前段线性、后段赋形，城市计入 nbs_index。"""
+        annual = _annual_rows(1, {"2019": 10000, "2020": 12000, "2021": 10000})
+        index = _index_rows(1, "2021-01", 12)  # 全 100 → 纯几何渐变衰减
+        series_list, meta = build_multi_source_series(
+            {"listing_annual_58": annual}, index_rows=index
+        )
+
+        rs = series_list[0]
+        assert rs.prices[rs.months.index("2020-06")] == pytest.approx(11000)  # 前段线性
+        # 后段：chain 恒 1 → 12000·(10/12)^(t/12) 几何渐变（线性应为 11000）
+        assert rs.prices[rs.months.index("2021-06")] == pytest.approx(
+            12000 * (10 / 12) ** (6 / 12)
+        )
+        assert rs.prices[rs.months.index("2021-12")] == 10000
+        assert meta.shaping == {"nbs_index": 1, "linear": 0}
+
+    def test_other_region_index_does_not_shape(self):
+        annual = _annual_rows(1, {"2020": 10000, "2021": 12000})
+        index = _index_rows(99, "2021-01", 12)  # 别的区域的指数
+        series_list, meta = build_multi_source_series(
+            {"listing_annual_58": annual}, index_rows=index
+        )
+
+        assert series_list[0].prices[6] == pytest.approx(11000)  # 仍是线性
+        assert meta.shaping == {"nbs_index": 0, "linear": 1}
+
+    def test_index_rows_none_behaves_identically(self):
+        """index_rows=None 回归：序列与指纹与不传时完全一致。"""
+        rows = {
+            "creprice": _monthly_rows(1, "2020-01", 12),
+            "listing_annual_58": _annual_rows(2, {"2020": 10000, "2021": 12000}),
+        }
+        base_series, base_meta = build_multi_source_series(rows)
+        none_series, none_meta = build_multi_source_series(rows, index_rows=None)
+
+        assert [rs.prices for rs in none_series] == [rs.prices for rs in base_series]
+        assert none_meta.fingerprint == base_meta.fingerprint
+        assert none_meta.shaping == base_meta.shaping == {"nbs_index": 0, "linear": 1}
+
+    def test_calibration_applies_before_shaping(self):
+        """锚点先按比值曲线校准，赋形保持的是校准后的锚点值（北京式场景）。"""
+        monthly = _monthly_rows(1, "2020-01", 24, base=8000, step=0)  # 成交 8000
+        annual = _annual_rows(1, {"2020": 10000, "2022": 10000})  # 挂牌 10000
+        index = _index_rows(1, "2021-01", 24, overrides={"2021-01": 110.0})
+        series_list, meta = build_multi_source_series(
+            {"kaggle_lianjia": monthly, "listing_annual_58": annual}, index_rows=index
+        )
+
+        assert meta.ratio_curve == {"2020": 0.8}  # 重叠对 8000/10000
+        rs = series_list[0]
+        assert rs.prices[rs.months.index("2022-12")] == pytest.approx(8000)  # 校准后锚点
+        # 缺口月来自赋形段：8000·1.1·(8000/8800)^(t/24)，t=18 → 2022-06
+        assert rs.prices[rs.months.index("2022-06")] == pytest.approx(
+            8000 * 1.1 * (10 / 11) ** (18 / 24)
+        )
+        assert meta.shaping == {"nbs_index": 1, "linear": 0}
 
 
 class TestBuildMultiSourceSeries:

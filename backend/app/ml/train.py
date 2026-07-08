@@ -1,6 +1,7 @@
 """模型训练、评估与版本化：RF + XGBoost（docs/06 §4~6、M3-1）。"""
 
 import json
+import os
 from datetime import datetime, timezone
 from itertools import product
 from pathlib import Path
@@ -69,15 +70,89 @@ class ModelStore:
         major, minor = (int(x) for x in versions[-1][1:].split("."))
         return f"v{major}.{minor + 1}"
 
+    def _align_owner(self, *paths: Path) -> None:
+        """写出文件属主对齐 base_dir 属主（治理 R5）。
+
+        容器内以 root 训练时，宿主挂载目录下会产生 root 属主文件，宿主侧无法管理；
+        写完后 chown 到挂载目录属主即可。非 root 运行或属主已一致时为空操作，
+        失败静默（不影响训练主流程）。
+        """
+        try:
+            stat = self.base_dir.stat()
+        except OSError:
+            return
+        for path in paths:
+            try:
+                if path.stat().st_uid != stat.st_uid:
+                    os.chown(path, stat.st_uid, stat.st_gid)
+                path.chmod(0o775 if path.is_dir() else 0o664)
+            except OSError:
+                continue
+
     def save(self, model_name: str, version: str, model, meta: dict) -> Path:
         model_dir = self._model_dir(model_name)
         model_dir.mkdir(parents=True, exist_ok=True)
         path = model_dir / f"{version}.pkl"
         joblib.dump(model, path)
-        (model_dir / f"{version}_meta.json").write_text(
+        meta_path = model_dir / f"{version}_meta.json"
+        meta_path.write_text(
             json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
         )
+        self._align_owner(model_dir, path, meta_path)
         return path
+
+    def delete(self, model_name: str, version: str) -> None:
+        """删除指定版本（pkl + meta 两个文件）；活跃版本拒绝删除（ValueError）。"""
+        model_dir = self._model_dir(model_name)
+        pkl = model_dir / f"{version}.pkl"
+        meta_path = model_dir / f"{version}_meta.json"
+        # 路径穿越防护（破坏性操作，纵深防御，API 层另有 pattern 校验）：
+        # 解析后必须恰好位于 base_dir/<model_name>/ 一层内，".." 等一律拒绝
+        base = self.base_dir.resolve()
+        for target in (pkl, meta_path):
+            if target.resolve().parent.parent != base:
+                raise ValueError(f"非法模型版本路径: {model_name}/{version}")
+        active = self.get_active()
+        if (
+            active is not None
+            and active["model_name"] == model_name
+            and active["version"] == version
+        ):
+            raise ValueError(f"活跃版本不可删除: {model_name}/{version}")
+        if not pkl.exists() and not meta_path.exists():
+            raise FileNotFoundError(f"模型版本不存在: {model_name}/{version}")
+        pkl.unlink(missing_ok=True)
+        meta_path.unlink(missing_ok=True)
+
+    def cleanup(self, keep_last: int = 3) -> list[dict]:
+        """每个模型保留最近 keep_last 个版本 + 活跃版本，删除其余，返回删除清单。"""
+        active = self.get_active()
+        deleted: list[dict] = []
+        if not self.base_dir.exists():
+            return deleted
+        for model_dir in sorted(p for p in self.base_dir.iterdir() if p.is_dir()):
+            model_name = model_dir.name
+            versions = self.versions(model_name)
+            keep = set(versions[-keep_last:]) if keep_last > 0 else set()
+            if active is not None and active["model_name"] == model_name:
+                keep.add(active["version"])
+            for version in versions:
+                if version not in keep:
+                    self.delete(model_name, version)
+                    deleted.append({"model_name": model_name, "version": version})
+        return deleted
+
+    def best_versions(self) -> dict[str, str]:
+        """每个模型 MAPE 最低的版本 {model_name: version}；无 mape 指标的版本忽略。"""
+        best: dict[str, tuple[float, str]] = {}
+        for meta in self.list_all():
+            mape = (meta.get("metrics") or {}).get("mape")
+            if mape is None:
+                continue
+            name = meta["model_name"]
+            if name not in best or mape < best[name][0]:
+                best[name] = (mape, meta["version"])
+        return {name: version for name, (_, version) in best.items()}
 
     def load(self, model_name: str, version: str) -> tuple[object, dict] | None:
         model_dir = self._model_dir(model_name)
@@ -125,6 +200,7 @@ class ModelStore:
             json.dumps({"model_name": model_name, "version": version}, ensure_ascii=False),
             encoding="utf-8",
         )
+        self._align_owner(self._active_path())
 
     def load_active(self) -> tuple[object, dict] | None:
         """加载活跃模型；指针缺失或失效时回退 random_forest 最新版（M2-5 兼容）。"""

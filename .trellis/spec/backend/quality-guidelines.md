@@ -45,6 +45,13 @@ Validation commands: `.venv/bin/python -m ruff check app tests scripts`,
   `redis_client`, so callers need not pass one). Any NEW `api:*` cache key family
   MUST be added to `_api_cache_patterns` in `app/core/cache.py`, or it will serve
   stale data for up to its TTL after ingestion.
+- **Path params that resolve to filesystem paths need double validation** (learned
+  from model-governance: `DELETE /admin/predict/models/{name}/{version}` was
+  traversable via `name=".."`). API layer: `fastapi.Path` pattern
+  (`^[a-z][a-z0-9_]{0,63}$` for model names, `^v\d+\.\d+$` for versions); store
+  layer: resolve and verify the target stays under `base_dir` before destructive
+  ops (`ModelStore.delete`). Apply both to any future endpoint that maps URL
+  segments onto `models/` or other on-disk trees.
 
 ## Testing Requirements
 

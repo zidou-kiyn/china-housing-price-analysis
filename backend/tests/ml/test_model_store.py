@@ -82,3 +82,121 @@ class TestListAll:
 
     def test_empty_dir(self, tmp_path):
         assert ModelStore(tmp_path / "nope").list_all() == []
+
+
+def _save_dummy(store, model_name: str, version: str, mape: float = 5.0) -> None:
+    """写入一个廉价的伪版本（pkl 内容不参与断言，仅占位两文件）。"""
+    store.save(
+        model_name,
+        version,
+        {"dummy": True},
+        {"model_name": model_name, "version": version, "metrics": {"mape": mape}},
+    )
+
+
+class TestDelete:
+    def test_delete_removes_both_files(self, store):
+        _save_dummy(store, "random_forest", "v1.0")
+        _save_dummy(store, "random_forest", "v1.1")
+
+        store.delete("random_forest", "v1.0")
+
+        model_dir = store._model_dir("random_forest")
+        assert not (model_dir / "v1.0.pkl").exists()
+        assert not (model_dir / "v1.0_meta.json").exists()
+        assert store.versions("random_forest") == ["v1.1"]
+
+    def test_delete_active_raises(self, store):
+        _save_dummy(store, "random_forest", "v1.0")
+        store.set_active("random_forest", "v1.0")
+        with pytest.raises(ValueError):
+            store.delete("random_forest", "v1.0")
+        assert store.versions("random_forest") == ["v1.0"]
+
+    def test_delete_missing_raises(self, store):
+        _save_dummy(store, "random_forest", "v1.0")
+        with pytest.raises(FileNotFoundError):
+            store.delete("random_forest", "v9.9")
+        with pytest.raises(FileNotFoundError):
+            store.delete("lightgbm", "v1.0")
+
+    def test_delete_rejects_path_traversal(self, store, tmp_path):
+        """model_name/version 含 ".." 不得逃出 base_dir 删除任意文件。"""
+        victim_pkl = tmp_path.parent / "victim.pkl"
+        victim_meta = tmp_path.parent / "victim_meta.json"
+        victim_pkl.write_bytes(b"x")
+        victim_meta.write_text("{}", encoding="utf-8")
+        _save_dummy(store, "random_forest", "v1.0")
+        try:
+            with pytest.raises(ValueError, match="非法"):
+                store.delete("..", "victim")
+            with pytest.raises(ValueError, match="非法"):
+                store.delete("random_forest", "../../victim")
+            with pytest.raises(ValueError, match="非法"):
+                store.delete(".", "v1.0")
+            assert victim_pkl.exists()
+            assert victim_meta.exists()
+            assert store.versions("random_forest") == ["v1.0"]
+        finally:
+            victim_pkl.unlink(missing_ok=True)
+            victim_meta.unlink(missing_ok=True)
+
+
+class TestCleanup:
+    def test_keeps_last_n_plus_active(self, store):
+        for minor in range(5):  # v1.0 ~ v1.4
+            _save_dummy(store, "random_forest", f"v1.{minor}")
+        store.set_active("random_forest", "v1.0")
+
+        deleted = store.cleanup(keep_last=2)
+
+        assert deleted == [
+            {"model_name": "random_forest", "version": "v1.1"},
+            {"model_name": "random_forest", "version": "v1.2"},
+        ]
+        # 活跃 v1.0 保留，最近 2 个 v1.3/v1.4 保留
+        assert store.versions("random_forest") == ["v1.0", "v1.3", "v1.4"]
+        assert store.get_active() == {"model_name": "random_forest", "version": "v1.0"}
+
+    def test_covers_all_models(self, store):
+        for minor in range(4):
+            _save_dummy(store, "random_forest", f"v1.{minor}")
+            _save_dummy(store, "xgboost", f"v1.{minor}")
+
+        deleted = store.cleanup(keep_last=3)
+
+        assert deleted == [
+            {"model_name": "random_forest", "version": "v1.0"},
+            {"model_name": "xgboost", "version": "v1.0"},
+        ]
+
+    def test_nothing_to_delete(self, store):
+        _save_dummy(store, "random_forest", "v1.0")
+        assert store.cleanup(keep_last=3) == []
+        assert store.versions("random_forest") == ["v1.0"]
+
+    def test_empty_dir(self, tmp_path):
+        assert ModelStore(tmp_path / "nope").cleanup() == []
+
+
+class TestBestVersions:
+    def test_lowest_mape_per_model(self, store):
+        _save_dummy(store, "random_forest", "v1.0", mape=4.75)
+        _save_dummy(store, "random_forest", "v1.1", mape=1.95)
+        _save_dummy(store, "random_forest", "v1.2", mape=3.10)
+        _save_dummy(store, "xgboost", "v1.0", mape=2.26)
+
+        assert store.best_versions() == {"random_forest": "v1.1", "xgboost": "v1.0"}
+
+    def test_skips_versions_without_mape(self, store):
+        _save_dummy(store, "random_forest", "v1.0", mape=2.0)
+        store.save(
+            "random_forest",
+            "v1.1",
+            {"dummy": True},
+            {"model_name": "random_forest", "version": "v1.1"},  # 无 metrics
+        )
+        assert store.best_versions() == {"random_forest": "v1.0"}
+
+    def test_empty_store(self, store):
+        assert store.best_versions() == {}

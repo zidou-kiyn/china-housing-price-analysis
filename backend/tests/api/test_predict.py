@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import settings
 from app.core.source_policy import SOURCE_META
+from app.ml.train import ModelStore
 from app.models.admin_job import AdminJob
 from app.models.prediction import Prediction
 from app.models.price_snapshot import PriceSnapshot
@@ -297,8 +299,6 @@ class TestModelSwitch:
 
     async def test_list_models_old_meta_compat(self, client, admin_headers, trained_model):
         """旧版本 meta（无 baselines 等新字段）list 全链路不报错，新字段为 None。"""
-        import shutil
-
         model_dir = Path(settings.ml_model_dir) / "random_forest"
         old_pkl = model_dir / "v9.0.pkl"
         old_meta_path = model_dir / "v9.0_meta.json"
@@ -482,3 +482,157 @@ class TestPredictCoverage:
             await _cleanup_predictions(
                 "district", region_id, ["v0.0", trained_model["model_version"]]
             )
+
+
+class TestModelGovernance:
+    """模型版本治理（ml-model-governance）：删除、批量清理、最佳标注。"""
+
+    @staticmethod
+    def _fabricate(trained_model: dict, version: str, mape: float) -> tuple[Path, Path]:
+        """基于已训模型伪造一个版本（复制 pkl + 写最小 meta），返回两文件路径。"""
+        model_dir = Path(settings.ml_model_dir) / "random_forest"
+        pkl = model_dir / f"{version}.pkl"
+        meta_path = model_dir / f"{version}_meta.json"
+        shutil.copyfile(model_dir / f"{trained_model['model_version']}.pkl", pkl)
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "model_name": "random_forest",
+                    "version": version,
+                    "trained_at": "2026-01-01T00:00:00+00:00",
+                    "n_lags": 12,
+                    "metrics": {"mae": 1.0, "rmse": 1.0, "mape": mape, "r2": 0.9},
+                    "training_samples": 10,
+                }
+            ),
+            encoding="utf-8",
+        )
+        return pkl, meta_path
+
+    async def test_delete_nonactive_204(self, client, admin_headers, trained_model):
+        pkl, meta_path = self._fabricate(trained_model, "v8.0", mape=99.0)
+        resp = await client.delete(
+            "/api/v1/admin/predict/models/random_forest/v8.0", headers=admin_headers
+        )
+        assert resp.status_code == 204, resp.text
+        assert not pkl.exists()
+        assert not meta_path.exists()
+
+    async def test_delete_active_409(self, client, admin_headers, trained_model):
+        resp = await client.put(
+            "/api/v1/admin/predict/models/active",
+            json={
+                "model_name": trained_model["model_name"],
+                "version": trained_model["model_version"],
+            },
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+
+        resp = await client.delete(
+            f"/api/v1/admin/predict/models/{trained_model['model_name']}"
+            f"/{trained_model['model_version']}",
+            headers=admin_headers,
+        )
+        assert resp.status_code == 409
+        assert resp.json()["code"] == "MODEL_ACTIVE"
+        # 文件仍在
+        model_dir = Path(settings.ml_model_dir) / trained_model["model_name"]
+        assert (model_dir / f"{trained_model['model_version']}.pkl").exists()
+
+    async def test_delete_unknown_404(self, client, admin_headers, trained_model):
+        resp = await client.delete(
+            "/api/v1/admin/predict/models/random_forest/v9.9", headers=admin_headers
+        )
+        assert resp.status_code == 404
+        assert resp.json()["code"] == "MODEL_NOT_FOUND"
+
+    async def test_delete_requires_admin(self, client, auth_headers, trained_model):
+        resp = await client.delete(
+            "/api/v1/admin/predict/models/random_forest/v9.9", headers=auth_headers
+        )
+        assert resp.status_code == 403
+
+    async def test_delete_rejects_unsafe_path_params(self, client, admin_headers, trained_model):
+        """路径穿越防护：model_name/version 含点等非法字符 → 422，不触达文件系统。"""
+        for url in (
+            "/api/v1/admin/predict/models/bad.name/v1.0",  # model_name 含点
+            "/api/v1/admin/predict/models/%2e%2e/v1.0",  # model_name = ".."
+            "/api/v1/admin/predict/models/random_forest/1.0",  # version 缺 v 前缀
+            "/api/v1/admin/predict/models/random_forest/v1.0abc",  # version 带尾缀
+        ):
+            resp = await client.delete(url, headers=admin_headers)
+            assert resp.status_code == 422, f"{url} -> {resp.status_code}"
+
+    async def test_cleanup_keeps_recent_and_active(self, client, admin_headers, trained_model):
+        """cleanup 后每模型剩最近 keep_last 个 + 活跃版本，active 指针仍有效。"""
+        # 确保活跃 = 已训版本（最老 rf 版本之一），验证活跃版不被清理
+        resp = await client.put(
+            "/api/v1/admin/predict/models/active",
+            json={
+                "model_name": trained_model["model_name"],
+                "version": trained_model["model_version"],
+            },
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+
+        fabricated = [
+            self._fabricate(trained_model, f"v8.{i}", mape=99.0) for i in range(3)
+        ]
+        store = ModelStore(settings.ml_model_dir)
+        expected_deleted = []
+        for model_name in ("random_forest", "xgboost"):
+            versions = store.versions(model_name)
+            keep = set(versions[-2:])
+            if model_name == trained_model["model_name"]:
+                keep.add(trained_model["model_version"])
+            expected_deleted += [
+                {"model_name": model_name, "version": v} for v in versions if v not in keep
+            ]
+
+        try:
+            resp = await client.post(
+                "/api/v1/admin/predict/models/cleanup?keep_last=2", headers=admin_headers
+            )
+            assert resp.status_code == 200, resp.text
+            body = resp.json()
+            assert body["keep_last"] == 2
+            assert body["deleted"] == expected_deleted
+
+            # 剩余版本 = 最近 2 个 + 活跃版；活跃指针仍有效可加载
+            rf_left = store.versions("random_forest")
+            assert trained_model["model_version"] in rf_left
+            assert len(rf_left) <= 3
+            assert store.load_active() is not None
+            for d in body["deleted"]:
+                model_dir = Path(settings.ml_model_dir) / d["model_name"]
+                assert not (model_dir / f"{d['version']}.pkl").exists()
+                assert not (model_dir / f"{d['version']}_meta.json").exists()
+        finally:
+            for pkl, meta_path in fabricated:  # 清掉存活的伪造版本，不影响后续用例
+                pkl.unlink(missing_ok=True)
+                meta_path.unlink(missing_ok=True)
+
+    async def test_cleanup_requires_admin(self, client, auth_headers, trained_model):
+        resp = await client.post(
+            "/api/v1/admin/predict/models/cleanup", headers=auth_headers
+        )
+        assert resp.status_code == 403
+
+    async def test_list_models_marks_best(self, client, admin_headers, trained_model):
+        """同模型下 MAPE 最低的版本标注 is_best，且每个模型恰好一个最佳。"""
+        pkl, meta_path = self._fabricate(trained_model, "v8.9", mape=0.01)
+        try:
+            resp = await client.get("/api/v1/admin/predict/models", headers=admin_headers)
+            assert resp.status_code == 200
+            models = resp.json()
+            rf = [m for m in models if m["model_name"] == "random_forest"]
+            best_rf = [m for m in rf if m["is_best"]]
+            assert [m["version"] for m in best_rf] == ["v8.9"]
+            for model_name in {m["model_name"] for m in models}:
+                bests = [m for m in models if m["model_name"] == model_name and m["is_best"]]
+                assert len(bests) == 1
+        finally:
+            pkl.unlink()
+            meta_path.unlink()

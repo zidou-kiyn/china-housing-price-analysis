@@ -2,7 +2,7 @@
 
 import asyncio
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +22,9 @@ from app.models.user import UserAccount
 from app.schemas.admin_job import AdminJobOut
 from app.schemas.predict import (
     ActiveModelRequest,
+    ModelCleanupOut,
     ModelVersionOut,
+    ModelVersionRef,
     PredictionPointOut,
     PredictionResponse,
     TrainRequest,
@@ -224,6 +226,7 @@ async def train_model(
 async def list_models(_admin: UserAccount = Depends(require_admin)):
     store = _store()
     active = store.get_active()
+    best = store.best_versions()
     return [
         ModelVersionOut(
             model_name=meta["model_name"],
@@ -234,12 +237,39 @@ async def list_models(_admin: UserAccount = Depends(require_admin)):
             is_active=active is not None
             and active["model_name"] == meta["model_name"]
             and active["version"] == meta["version"],
+            is_best=best.get(meta["model_name"]) == meta["version"],
             # 旧版本 meta 无 baselines/beats_baseline 字段 → None（兼容）
             beats_baseline=meta.get("beats_baseline"),
             baseline_mape=((meta.get("baselines") or {}).get("last_value") or {}).get("mape"),
         )
         for meta in store.list_all()
     ]
+
+
+@router.delete("/admin/predict/models/{model_name}/{version}", status_code=204)
+async def delete_model_version(
+    # pattern 校验兼作路径穿越防护：拒绝 ".."、"." 及任何含点/斜杠的段（破坏性操作）
+    model_name: str = Path(..., pattern=r"^[a-z][a-z0-9_]{0,63}$"),
+    version: str = Path(..., pattern=r"^v\d+\.\d+$"),
+    _admin: UserAccount = Depends(require_admin),
+):
+    """删除指定模型版本（pkl + meta）；活跃版本拒绝删除（409）。"""
+    try:
+        _store().delete(model_name, version)
+    except ValueError as exc:
+        raise ApiError(409, str(exc), "MODEL_ACTIVE")
+    except FileNotFoundError as exc:
+        raise ApiError(404, str(exc), "MODEL_NOT_FOUND")
+
+
+@router.post("/admin/predict/models/cleanup", response_model=ModelCleanupOut)
+async def cleanup_model_versions(
+    keep_last: int = Query(3, ge=1, le=20),
+    _admin: UserAccount = Depends(require_admin),
+):
+    """批量清理旧版本：每个模型保留最近 keep_last 个版本 + 活跃版本，返回删除清单。"""
+    deleted = _store().cleanup(keep_last)
+    return ModelCleanupOut(keep_last=keep_last, deleted=[ModelVersionRef(**d) for d in deleted])
 
 
 @router.put("/admin/predict/models/active", response_model=list[ModelVersionOut])

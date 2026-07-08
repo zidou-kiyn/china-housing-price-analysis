@@ -187,6 +187,14 @@ export interface ModelVersion {
   metrics: Record<string, number>
   training_samples: number
   is_active: boolean
+  is_best: boolean
+  beats_baseline: boolean | null
+  baseline_mape: number | null
+}
+
+export interface ModelCleanupResult {
+  keep_last: number
+  deleted: { model_name: string; version: string }[]
 }
 
 export interface ProxySetting {

@@ -15,11 +15,13 @@
 
 ## ⏳ 未完成（下一会话可选方向）
 
-### 0. ML 多源训练集构建器【已规划方向，待开任务】
-用户已确认另开任务。方向（本轮讨论定稿）：训练目标只用月度口径 + `source` 作分类特征；
-用北京双口径重叠期估计挂牌→成交折价系数，把 330 城年度挂牌校准后扩充训练历史；
-330 城年度序列做跨城池化模型（省份/价格水平/年增速特征）；后续可用 NBS 70 城指数把年度值插值成月度。
-基础设施已就绪：`price_select.select_merged_snapshots`（干净单序列）+ `trend/series`（分源序列）。
+### 0. ML 多源训练集构建器【✅ 已完成（07-08-ml-optimization 父任务）】
+四个子任务全部落地并归档（archive/2026-07/07-08-ml-{dataset-builder,train-eval,predict-coverage,model-governance}）：
+多源训练集构建器（**逐年分段比值曲线**校准，原"单一折价系数"方案被重叠期实证否定——比值 0.79→1.09 漂移）、
+naive 基线/RF CV/分层评估（看 `metrics_real_monthly` 不看全量 metrics）、
+年度城市预测覆盖（330 城 404→200，data_quality 标注）、版本治理（删除/清理/最佳标注，active→v1.7）。
+约定已入 spec：`.trellis/spec/backend/database-guidelines.md` §ML training-data path。
+未做的遗留方向：跨城池化独立年度模型、NBS 70 城指数月度插值、ANNUAL_CI_PENALTY 回测校准。
 
 ### 1. NBS 70 城指数导入（child B 的务实替代路径）【可选】
 - **关键发现**：live easyquery 被 WAF 拦（连国内机房 IP 也 403，见下），但**已抓好的 NBS 70 城指数 CSV 在 GitHub 全球可下**，绕开 IP 问题：

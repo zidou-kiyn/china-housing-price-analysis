@@ -17,4 +17,3 @@ class District(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     city: Mapped["City"] = relationship(back_populates="districts")  # noqa: F821
-    areas: Mapped[list["Area"]] = relationship(back_populates="district")  # noqa: F821

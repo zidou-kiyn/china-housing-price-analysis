@@ -31,7 +31,7 @@ from app.schemas.predict import (
 )
 from app.core.source_policy import training_rows_only
 from app.services import job_runner
-from app.services.price_select import select_index_snapshots, select_source_snapshots
+from app.services.price_select import select_source_snapshots
 
 router = APIRouter(tags=["predictions"])
 
@@ -64,18 +64,9 @@ async def _load_source_rows(
 async def _load_index_rows(
     db: AsyncSession, region_type: str | None = None, region_ids: list[int] | None = None
 ) -> list[dict]:
-    # NBS 二手房环比指数（与年度挂牌均价口径最接近）：年度序列的月度赋形供数。
-    # 训练与预测同走这里 → 同一构建器得到同样的赋形序列（R5 一致性）。
-    snaps = await select_index_snapshots(db, region_type, region_ids)
-    return [
-        {
-            "region_type": s.region_type,
-            "region_id": s.region_id,
-            "year_month": s.year_month,
-            "index_value": s.index_value,
-        }
-        for s in snaps
-    ]
+    # NBS 指数表已删除（migration 007），返回空列表；build_multi_source_series
+    # 在 index_rows 为空时自动回退到线性插值。
+    return []
 
 
 @router.get("/predict/{region_id}", response_model=PredictionResponse)

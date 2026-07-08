@@ -15,11 +15,10 @@ from app.models.price_snapshot import PriceSnapshot
 from app.schemas.price import (
     DistributionItem,
     DistrictOverviewItem,
-    IndexTrendPoint,
     TrendPoint,
     TrendSeries,
 )
-from app.services.price_select import select_index_snapshots, select_snapshots_for_source
+from app.services.price_select import select_snapshots_for_source
 
 router = APIRouter(prefix="/prices", tags=["prices"])
 
@@ -104,33 +103,6 @@ async def price_trend_series(
         ex=CACHE_TTL_PRICES,
     )
     return series
-
-
-@router.get("/index/trend", response_model=list[IndexTrendPoint])
-async def price_index_trend(
-    region_type: str = Query(..., pattern="^(city|district)$"),
-    region_id: int = Query(..., gt=0),
-    db: AsyncSession = Depends(get_session),
-    cache: Redis = Depends(get_cache),
-):
-    """NBS 房价指数走势（二手房环比，单位=指数非价格）。
-
-    切换器选「官方指数」源时走这里——指数走 price_index_snapshot 独立路径，
-    不混入 ¥/㎡ 端点（source_policy 未登记指数为 price_snapshot 源）。
-    """
-    cache_key = f"api:index:trend:{region_type}:{region_id}"
-    cached = await cache.get(cache_key)
-    if cached:
-        return json.loads(cached)
-
-    snaps = await select_index_snapshots(db, region_type, [region_id])
-    points = [IndexTrendPoint.model_validate(s) for s in snaps]
-    await cache.set(
-        cache_key,
-        json.dumps([p.model_dump() for p in points], cls=_DecimalEncoder),
-        ex=CACHE_TTL_PRICES,
-    )
-    return points
 
 
 @router.get("/distribution", response_model=list[DistributionItem])

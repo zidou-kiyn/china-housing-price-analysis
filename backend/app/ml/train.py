@@ -372,7 +372,6 @@ def train_model(
     series_list: list[RegionSeries],
     store: ModelStore,
     n_lags: int | None = None,
-    city_codes: list[str] | None = None,
     dataset_meta: dict | None = None,
 ) -> dict:
     """训练指定算法并版本化保存，返回 meta。
@@ -450,7 +449,6 @@ def train_model(
         "per_region_metrics": _per_region_metrics(frame_val, y_pred),
         "training_samples": int(len(frame)),
         "validation_samples": int(len(x_val)),
-        "city_codes": city_codes or [],
         "ci_strategy": "per_tree" if algorithm == "random_forest" else "residual",
         "resid_std": round(float(np.std(y_val - y_pred)), 2),
         "resid_std_pct": resid_std_pct,
@@ -465,7 +463,6 @@ def train_random_forest(
     series_list: list[RegionSeries],
     store: ModelStore,
     n_lags: int | None = None,
-    city_codes: list[str] | None = None,
     dataset_meta: dict | None = None,
 ) -> dict:
-    return train_model("random_forest", series_list, store, n_lags, city_codes, dataset_meta)
+    return train_model("random_forest", series_list, store, n_lags, dataset_meta)

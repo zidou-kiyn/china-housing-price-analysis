@@ -164,19 +164,12 @@ async def get_prediction(
     )
 
 
-async def _run_train(
-    job_id: int,
-    model_name: str,
-    city_codes: list[str],
-    region_type: str | None,
-    region_ids: list[int] | None,
-) -> None:
+async def _run_train(job_id: int, model_name: str) -> None:
     """训练任务体：读数在独立 session，训练（同步 CPU 密集）放线程池避免阻塞事件循环。"""
     async with async_session_factory() as db:
-        rows_by_source = await _load_source_rows(db, region_type, region_ids)
-        index_rows = await _load_index_rows(db, region_type, region_ids)
+        rows_by_source = await _load_source_rows(db)
+        index_rows = await _load_index_rows(db)
         tier_map = await load_city_tier_map(db)
-    # 多源构建：口径校准 + 年度扩充（指数赋形/线性）+ 真实月度优先去重
     series_list, dataset_meta = build_multi_source_series(rows_by_source, index_rows=index_rows)
     for rs in series_list:
         rs.city_tier = tier_map.get(rs.region_id)
@@ -186,7 +179,6 @@ async def _run_train(
         model_name,
         series_list,
         _store(),
-        city_codes=city_codes,
         dataset_meta=dataset_meta.to_dict(),
     )
     await job_runner.report_progress(
@@ -211,39 +203,11 @@ async def train_model(
     db: AsyncSession = Depends(get_session),
     _admin: UserAccount = Depends(require_admin),
 ):
-    """提交异步训练任务，返回 job；训练完成后新版本不自动激活。"""
-    region_ids: list[int] | None = None
-    region_type: str | None = None
-
-    if payload.city_codes:
-        cities = (
-            (await db.execute(select(City).where(City.code.in_(payload.city_codes))))
-            .scalars()
-            .all()
-        )
-        found = {c.code for c in cities}
-        missing = [c for c in payload.city_codes if c not in found]
-        if missing:
-            raise ApiError(404, f"城市不存在: {', '.join(missing[:10])}", "CITY_NOT_FOUND")
-        region_ids = list(
-            (
-                await db.execute(
-                    select(District.id).where(
-                        District.city_id.in_([c.id for c in cities])
-                    )
-                )
-            ).scalars()
-        )
-        region_type = "district"
-        if not region_ids:
-            raise ApiError(400, "所选城市暂无区县数据，请先采集", "VALIDATION_ERROR")
-
+    """提交异步训练任务（全量数据），返回 job；训练完成后新版本不自动激活。"""
     job = await job_runner.submit(
         "train",
-        {"model_name": payload.model_name, "city_codes": payload.city_codes},
-        lambda job_id: _run_train(
-            job_id, payload.model_name, payload.city_codes, region_type, region_ids
-        ),
+        {"model_name": payload.model_name},
+        lambda job_id: _run_train(job_id, payload.model_name),
         progress_total=1,
     )
     return job

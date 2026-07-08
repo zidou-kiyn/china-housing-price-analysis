@@ -7,9 +7,8 @@ import {
   setActiveModel,
   submitTrain,
 } from '@/api/predict'
-import { fetchCities } from '@/api/price'
 import { usePolling } from '@/composables/usePolling'
-import type { AdminJob, City, ModelVersion } from '@/types'
+import type { AdminJob, ModelVersion } from '@/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 
@@ -108,8 +107,6 @@ async function onCleanup() {
 
 // ---- 训练表单 ----
 const algorithm = ref<'random_forest' | 'xgboost'>('random_forest')
-const cityCodes = ref<string[]>([])
-const cityOptions = ref<City[]>([])
 
 // ---- 训练任务轮询 ----
 const activeJob = ref<AdminJob | null>(null)
@@ -135,7 +132,6 @@ async function onSubmitTrain() {
   try {
     const job = await submitTrain({
       model_name: algorithm.value,
-      city_codes: cityCodes.value,
     })
     ElMessage.success(`训练任务 #${job.id} 已提交`)
     activeJob.value = job
@@ -159,7 +155,6 @@ onMounted(async () => {
   await Promise.all([
     loadVersions(),
     loadTrainJob(),
-    fetchCities().then((cities) => (cityOptions.value = cities)),
   ])
 })
 </script>
@@ -224,16 +219,6 @@ onMounted(async () => {
         <el-select v-model="algorithm" class="algo-select">
           <el-option label="random_forest" value="random_forest" />
           <el-option label="xgboost" value="xgboost" />
-        </el-select>
-        <el-select
-          v-model="cityCodes"
-          multiple
-          collapse-tags
-          clearable
-          placeholder="训练数据范围（默认全部已采集城市）"
-          class="city-select"
-        >
-          <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
         </el-select>
         <el-button type="primary" :disabled="training" @click="onSubmitTrain">
           开始训练

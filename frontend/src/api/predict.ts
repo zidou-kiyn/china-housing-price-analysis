@@ -37,7 +37,6 @@ export function cleanupModelVersions(keepLast = 3): Promise<ModelCleanupResult> 
 
 export function submitTrain(payload: {
   model_name: string
-  city_codes?: string[]
 }): Promise<AdminJob> {
   return api.post('/admin/predict/train', payload)
 }

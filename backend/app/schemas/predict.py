@@ -23,8 +23,6 @@ class PredictionResponse(BaseModel):
 
 class TrainRequest(BaseModel):
     model_name: str = Field("random_forest", pattern="^(random_forest|xgboost)$")
-    # 训练数据范围：城市 code 列表；空 = 全部已采集数据
-    city_codes: list[str] = Field(default_factory=list)
 
     model_config = {"protected_namespaces": ()}
 

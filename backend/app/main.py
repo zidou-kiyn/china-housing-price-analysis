@@ -1,6 +1,4 @@
 import logging
-import os
-import sys
 import time
 from contextlib import asynccontextmanager
 
@@ -13,34 +11,18 @@ from app.core.config import settings
 from app.core.database import engine
 from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
-from app.services.collect_scheduler import collect_scheduler
 from app.services.job_runner import cleanup_stale_jobs
+from app.services.seed import seed_cities_if_empty
 
 setup_logging(settings.log_level)
 access_logger = logging.getLogger("app.access")
 
 
-def _scheduler_enabled() -> bool:
-    """pytest 导入 app 时绝不启动调度循环（避免测试悬挂任务/意外采集）。
-
-    判定：pytest 进程中 sys.modules 必含 "pytest"（conftest 由 pytest 加载）；
-    另留 COLLECT_SCHEDULER_DISABLED=1 环境变量供部署侧显式关停循环本身
-    （日常开关走 admin settings 的 collect_schedule.enabled，无需重启）。
-    """
-    if "pytest" in sys.modules:
-        return False
-    return os.environ.get("COLLECT_SCHEDULER_DISABLED", "") != "1"
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 重启后遗留的 running 任务标记 failed（多 worker 重复执行幂等）
     await cleanup_stale_jobs()
-    # 定时采集调度循环（每 worker 一个；当日批次由 KV 原子抢占保证唯一）
-    if _scheduler_enabled():
-        collect_scheduler.start()
+    await seed_cities_if_empty()
     yield
-    await collect_scheduler.stop()
     await engine.dispose()
     await redis_client.aclose()
 

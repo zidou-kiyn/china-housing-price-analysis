@@ -14,18 +14,13 @@ from app.api.deps import get_session, require_admin
 from app.core.errors import ApiError
 from app.models.user import UserAccount
 from app.schemas.settings import (
-    CollectScheduleOut,
-    CollectScheduleUpdate,
     ProxySettingOut,
     ProxySettingUpdate,
     ProxyTestRequest,
     ProxyTestResult,
 )
 from app.services.app_settings import (
-    COLLECT_SCHEDULE_KEY,
-    COLLECT_SCHEDULE_STATE_KEY,
     PROXY_KEY,
-    get_collect_schedule,
     get_setting,
     set_setting,
 )
@@ -51,7 +46,6 @@ def _validate_proxy_url(url: str) -> None:
 
 
 def mask_proxy_url(url: str) -> str:
-    """密码脱敏：http://user:***@host:port。"""
     parts = urlsplit(url)
     if parts.password is None:
         return url
@@ -90,7 +84,7 @@ async def update_proxy_setting(
     value = await _load(db)
     value["enabled"] = payload.enabled
 
-    if payload.url is not None:  # None = 仅改开关，保留已存 URL
+    if payload.url is not None:
         url = payload.url.strip()
         if url:
             _validate_proxy_url(url)
@@ -121,44 +115,6 @@ def _probe(proxy_url: str) -> ProxyTestResult:
         return ProxyTestResult(
             ok=False, elapsed_ms=elapsed, error=f"{type(exc).__name__}: {str(exc)[:200]}"
         )
-
-
-# ---- 定时采集 ----
-
-
-async def _schedule_out(db: AsyncSession) -> CollectScheduleOut:
-    config = await get_collect_schedule(db)
-    state = await get_setting(db, COLLECT_SCHEDULE_STATE_KEY)
-    return CollectScheduleOut(
-        enabled=bool(config["enabled"]),
-        time=str(config["time"]),
-        batch=int(config["batch"]),
-        state=state,
-    )
-
-
-@router.get("/collect-schedule", response_model=CollectScheduleOut)
-async def read_collect_schedule(
-    db: AsyncSession = Depends(get_session),
-    _admin: UserAccount = Depends(require_admin),
-):
-    """读取定时采集配置与上次运行状态。"""
-    return await _schedule_out(db)
-
-
-@router.put("/collect-schedule", response_model=CollectScheduleOut)
-async def update_collect_schedule(
-    payload: CollectScheduleUpdate,
-    db: AsyncSession = Depends(get_session),
-    _admin: UserAccount = Depends(require_admin),
-):
-    """保存定时采集配置；调度循环每分钟重读 KV，改动即时生效（无需重启）。"""
-    await set_setting(
-        db,
-        COLLECT_SCHEDULE_KEY,
-        {"enabled": payload.enabled, "time": payload.time, "batch": payload.batch},
-    )
-    return await _schedule_out(db)
 
 
 @router.post("/proxy/test", response_model=ProxyTestResult)

@@ -1,11 +1,7 @@
 import type {
   AdminJob,
   AdminJobListResponse,
-  AnnualImportResult,
   CityCoverageListResponse,
-  CollectScheduleSetting,
-  CollectSourcesResponse,
-  DataQualityReport,
   ProxySetting,
   ProxyTestResult,
   UserAdmin,
@@ -47,7 +43,7 @@ export function deleteUser(userId: number): Promise<void> {
   return api.delete(`/admin/users/${userId}`)
 }
 
-// ---- 数据管理（采集 / 地图 / 任务） ----
+// ---- 数据管理（采集 / 任务） ----
 
 export interface CityCoverageFilters {
   keyword?: string
@@ -55,14 +51,10 @@ export interface CityCoverageFilters {
 }
 
 export function fetchCityCoverage(
-  page = 1,
-  pageSize = 20,
   filters: CityCoverageFilters = {},
 ): Promise<CityCoverageListResponse> {
   return api.get('/admin/collect/cities', {
     params: {
-      page,
-      page_size: pageSize,
       keyword: filters.keyword || undefined,
       province: filters.province || undefined,
     },
@@ -74,37 +66,9 @@ export function refreshCities(): Promise<{ total: number }> {
 }
 
 export function submitCollect(payload: {
-  city_codes?: string[]
-  all?: boolean
-  all_missing?: boolean
-  source?: string
+  city_codes: string[]
 }): Promise<AdminJob> {
   return api.post('/admin/collect', payload)
-}
-
-// ---- 数据源切换 ----
-
-export function fetchCollectSources(): Promise<CollectSourcesResponse> {
-  return api.get('/admin/collect/sources')
-}
-
-export function saveCollectSource(source: string): Promise<CollectSourcesResponse> {
-  return api.put('/admin/collect/source', { source })
-}
-
-export function importAnnual(source = '58'): Promise<AnnualImportResult> {
-  return api.post('/admin/collect/import-annual', { source })
-}
-
-export function importIndex(): Promise<AdminJob> {
-  return api.post('/admin/collect/import-index')
-}
-
-export function submitGeoFetch(payload: {
-  city_codes?: string[]
-  all_missing?: boolean
-}): Promise<AdminJob> {
-  return api.post('/admin/geo/fetch', payload)
 }
 
 export function fetchJobs(
@@ -117,12 +81,6 @@ export function fetchJobs(
 
 export function fetchJob(jobId: number): Promise<AdminJob> {
   return api.get(`/admin/jobs/${jobId}`)
-}
-
-// ---- 数据质量审计 ----
-
-export function fetchDataQualityReport(): Promise<DataQualityReport> {
-  return api.get('/admin/data-quality/report')
 }
 
 // ---- 采集代理设置 ----
@@ -140,18 +98,4 @@ export function saveProxySetting(payload: {
 
 export function testProxy(url?: string): Promise<ProxyTestResult> {
   return api.post('/admin/settings/proxy/test', { url: url || undefined })
-}
-
-// ---- 定时采集设置 ----
-
-export function fetchCollectSchedule(): Promise<CollectScheduleSetting> {
-  return api.get('/admin/settings/collect-schedule')
-}
-
-export function saveCollectSchedule(payload: {
-  enabled: boolean
-  time: string
-  batch: number
-}): Promise<CollectScheduleSetting> {
-  return api.put('/admin/settings/collect-schedule', payload)
 }

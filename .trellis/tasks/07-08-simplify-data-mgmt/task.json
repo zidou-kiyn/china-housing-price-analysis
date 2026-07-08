@@ -1,0 +1,31 @@
+{
+  "id": "simplify-data-mgmt",
+  "name": "simplify-data-mgmt",
+  "title": "数据管理页面精简与单源化改造",
+  "description": "",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "zidou-kiyn",
+  "assignee": "zidou-kiyn",
+  "createdAt": "2026-07-08",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-08-db-restructure",
+    "07-08-backend-single-source",
+    "07-08-geo-static",
+    "07-08-ui-overhaul"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

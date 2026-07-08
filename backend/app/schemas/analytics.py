@@ -10,6 +10,8 @@ class RankItem(BaseModel):
     value_price: int | None = None
     yoy_pct: float | None = None
     mom_pct: float | None = None
+    # 最新值的数据来源，前端据此标注口径（如「年度·挂牌」）
+    source: str | None = None
 
 
 class RankResponse(BaseModel):

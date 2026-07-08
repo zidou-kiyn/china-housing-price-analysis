@@ -18,7 +18,6 @@ from app.ml.train import train_model as run_training
 from app.models.city import City
 from app.models.district import District
 from app.models.prediction import Prediction
-from app.models.price_snapshot import PriceSnapshot
 from app.models.user import UserAccount
 from app.schemas.admin_job import AdminJobOut
 from app.schemas.predict import (
@@ -29,6 +28,7 @@ from app.schemas.predict import (
     TrainRequest,
 )
 from app.services import job_runner
+from app.services.price_select import select_merged_snapshots
 
 router = APIRouter(tags=["predictions"])
 
@@ -40,12 +40,8 @@ def _store() -> ModelStore:
 async def _load_snapshot_rows(
     db: AsyncSession, region_type: str | None = None, region_ids: list[int] | None = None
 ) -> list[dict]:
-    stmt = select(PriceSnapshot)
-    if region_type:
-        stmt = stmt.where(PriceSnapshot.region_type == region_type)
-    if region_ids:
-        stmt = stmt.where(PriceSnapshot.region_id.in_(region_ids))
-    result = await db.execute(stmt)
+    # 合并选择：多源同月按优先级取一行，避免特征序列出现重复月份
+    snaps = await select_merged_snapshots(db, region_type, region_ids)
     return [
         {
             "region_type": s.region_type,
@@ -53,7 +49,7 @@ async def _load_snapshot_rows(
             "year_month": s.year_month,
             "supply_price": s.supply_price,
         }
-        for s in result.scalars()
+        for s in snaps
     ]
 
 

@@ -12,6 +12,7 @@ from app.models.district import District
 from app.models.price_distribution import PriceDistribution
 from app.models.price_snapshot import PriceSnapshot
 from app.schemas.price import DistributionItem, DistrictOverviewItem, TrendPoint
+from app.services.price_select import select_merged_snapshots
 
 router = APIRouter(prefix="/prices", tags=["prices"])
 
@@ -41,13 +42,9 @@ async def price_trend(
             points = points[-months:]
         return points
 
-    stmt = (
-        select(PriceSnapshot)
-        .where(PriceSnapshot.region_type == region_type, PriceSnapshot.region_id == region_id)
-        .order_by(PriceSnapshot.year_month)
-    )
-    result = await db.execute(stmt)
-    points = [TrendPoint.model_validate(r) for r in result.scalars()]
+    # 多源同月按优先级合并（月度 > 年度挂牌），保持"每月一点"的响应形状
+    snaps = await select_merged_snapshots(db, region_type, [region_id])
+    points = [TrendPoint.model_validate(r) for r in snaps]
 
     await cache.set(
         cache_key,

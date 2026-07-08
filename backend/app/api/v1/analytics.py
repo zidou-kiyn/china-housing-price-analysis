@@ -12,6 +12,7 @@ from app.models.city import City
 from app.models.district import District
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import UserAccount
+from app.services.price_select import select_merged_snapshots
 from app.schemas.analytics import (
     CompareRegion,
     CompareResponse,
@@ -65,14 +66,13 @@ async def _load_regions(
 async def _load_snapshots(
     db: AsyncSession, region_type: str, region_ids: list[int]
 ) -> dict[int, dict[str, PriceSnapshot]]:
-    """加载各区域快照，按 region_id → {year_month: snapshot} 分组。"""
-    stmt = select(PriceSnapshot).where(
-        PriceSnapshot.region_type == region_type,
-        PriceSnapshot.region_id.in_(region_ids),
-    )
-    result = await db.execute(stmt)
+    """加载各区域快照，按 region_id → {year_month: snapshot} 分组。
+
+    多源同月按 source_policy 优先级取一行（月度 > 年度挂牌），避免随机覆盖。
+    """
+    snaps = await select_merged_snapshots(db, region_type, region_ids)
     grouped: dict[int, dict[str, PriceSnapshot]] = {}
-    for snap in result.scalars():
+    for snap in snaps:
         grouped.setdefault(snap.region_id, {})[snap.year_month] = snap
     return grouped
 
@@ -114,6 +114,7 @@ async def price_rank(
                     value_price=snap.value_price if snap else None,
                     mom_pct=_pct_change(supply, prev.supply_price if prev else None),
                     yoy_pct=_pct_change(supply, last_year.supply_price if last_year else None),
+                    source=snap.source if snap else None,
                 ).model_dump()
             )
 

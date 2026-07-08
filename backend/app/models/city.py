@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import String, func
+from sqlalchemy import SmallInteger, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -14,6 +14,7 @@ class City(Base):
     code: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     province: Mapped[str | None] = mapped_column(String(50))
     adcode: Mapped[str | None] = mapped_column(String(20))  # 高德行政区划码，地图爬取用
+    tier: Mapped[int | None] = mapped_column(SmallInteger)  # 1=一线 2=新一线 3=二线 4=三线 5=四线 6=五线
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 

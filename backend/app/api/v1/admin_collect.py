@@ -98,6 +98,7 @@ async def list_city_coverage(
             name=city.name,
             code=city.code,
             province=city.province,
+            tier=city.tier,
             district_count=cnt,
             latest_month=latest,
         )

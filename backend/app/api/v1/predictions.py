@@ -17,6 +17,7 @@ from app.ml.train import ModelStore
 from app.ml.train import train_model as run_training
 from app.models.city import City
 from app.models.district import District
+from app.services.city_tier import load_city_tier_map
 from app.models.prediction import Prediction
 from app.models.user import UserAccount
 from app.schemas.admin_job import AdminJobOut
@@ -98,12 +99,15 @@ async def get_prediction(
     # 与其训练时未做校准的行为一致（单区域通常无重叠对，即不校准）。
     rows_by_source = await _load_source_rows(db, region_type, [region_id])
     index_rows = await _load_index_rows(db, region_type, [region_id])
+    tier_map = await load_city_tier_map(db)
     ratio_curve = (meta.get("dataset") or {}).get("ratio_curve")
     series_list, _ = build_multi_source_series(
         rows_by_source, ratio_curve_override=ratio_curve, index_rows=index_rows
     )
     if not series_list:
         raise ApiError(404, "该区域暂无可用历史数据", "PREDICTION_NOT_FOUND")
+    for rs in series_list:
+        rs.city_tier = tier_map.get(rs.region_id)
 
     try:
         points, data_quality = rolling_predict(model, meta, series_list[0], months_ahead)
@@ -171,8 +175,11 @@ async def _run_train(
     async with async_session_factory() as db:
         rows_by_source = await _load_source_rows(db, region_type, region_ids)
         index_rows = await _load_index_rows(db, region_type, region_ids)
+        tier_map = await load_city_tier_map(db)
     # 多源构建：口径校准 + 年度扩充（指数赋形/线性）+ 真实月度优先去重
     series_list, dataset_meta = build_multi_source_series(rows_by_source, index_rows=index_rows)
+    for rs in series_list:
+        rs.city_tier = tier_map.get(rs.region_id)
 
     meta = await asyncio.to_thread(
         run_training,

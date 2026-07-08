@@ -28,6 +28,7 @@ class RegionSeries:
     basis: str = "listing"  # listing | transaction（口径，见 source_policy.SOURCE_META）
     weights: list[float] | None = None  # 与 prices 等长；None=全 1
     interp_flags: list[int] | None = None  # 1=年度插值点；None=全 0
+    city_tier: int | None = None  # 1-6，第一财经城市等级
 
 
 def shift_month(year_month: str, delta: int) -> str:
@@ -42,7 +43,7 @@ def feature_columns(n_lags: int) -> list[str]:
         [f"lag_{i}" for i in range(1, n_lags + 1)]
         + ["rolling_mean_3", "rolling_mean_6", "rolling_mean_12", "rolling_std_6"]
         + ["mom_pct", "yoy_pct", "month", "quarter", "region_type_enc", "region_id"]
-        + ["basis_enc", "is_annual_interp"]
+        + ["basis_enc", "is_annual_interp", "city_tier"]
     )
 
 
@@ -93,6 +94,7 @@ def _feature_row(
     region_id: int,
     basis: str = "listing",
     is_annual_interp: int = 0,
+    city_tier: int | None = None,
 ) -> dict | None:
     """由 target_month 之前的完整历史构造一行特征；历史不足 n_lags 时返回 None。"""
     if len(history) < n_lags:
@@ -115,6 +117,7 @@ def _feature_row(
     row["region_id"] = region_id
     row["basis_enc"] = BASIS_ENC.get(basis, 0)
     row["is_annual_interp"] = is_annual_interp
+    row["city_tier"] = city_tier if city_tier is not None else 0
     return row
 
 
@@ -131,6 +134,7 @@ def build_training_frame(series_list: list[RegionSeries], n_lags: int) -> pd.Dat
                 rs.region_id,
                 rs.basis,
                 rs.interp_flags[idx] if rs.interp_flags else 0,
+                rs.city_tier,
             )
             if row is None:
                 continue
@@ -150,7 +154,7 @@ def build_inference_row(
     columns 传模型 meta["features"] 可按训练时列切片（旧模型无新列亦兼容）。
     未来月份视为月度行情目标，is_annual_interp 恒为 0。
     """
-    row = _feature_row(rs.prices, n_lags, target_month, rs.region_type, rs.region_id, rs.basis, 0)
+    row = _feature_row(rs.prices, n_lags, target_month, rs.region_type, rs.region_id, rs.basis, 0, rs.city_tier)
     if row is None:
         return None
     return pd.DataFrame([row])[columns or feature_columns(n_lags)]

@@ -41,6 +41,7 @@ class CityCoverageOut(BaseModel):
     name: str
     code: str
     province: str | None
+    tier: int | None
     district_count: int
     latest_month: str | None
 

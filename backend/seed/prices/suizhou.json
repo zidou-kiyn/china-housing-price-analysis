@@ -2,8 +2,29 @@
   "city_code": "suizhou",
   "city_name": "随州",
   "province": "湖北",
-  "scraped_at": "2026-07-09T12:22:50",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:47:19",
+  "districts": [
+    {
+      "name": "曾都区",
+      "code": "ZD",
+      "city_code": "suizhou"
+    },
+    {
+      "name": "广水市",
+      "code": "GS",
+      "city_code": "suizhou"
+    },
+    {
+      "name": "随县",
+      "code": "SX",
+      "city_code": "suizhou"
+    },
+    {
+      "name": "高新区",
+      "code": "G1",
+      "city_code": "suizhou"
+    }
+  ],
   "price_timeline": {
     "city": [
       {
@@ -98,7 +119,104 @@
         "sample_count": 123
       }
     ],
-    "districts": {}
+    "districts": {
+      "ZD": [
+        {
+          "year_month": "2025-07",
+          "supply_price": 5646,
+          "attention_price": null,
+          "value_price": 5646,
+          "sample_count": 85
+        },
+        {
+          "year_month": "2025-08",
+          "supply_price": 5748,
+          "attention_price": null,
+          "value_price": 5748,
+          "sample_count": 95
+        },
+        {
+          "year_month": "2025-09",
+          "supply_price": 5523,
+          "attention_price": null,
+          "value_price": 5523,
+          "sample_count": 146
+        },
+        {
+          "year_month": "2025-10",
+          "supply_price": 5782,
+          "attention_price": null,
+          "value_price": 5782,
+          "sample_count": 87
+        },
+        {
+          "year_month": "2025-11",
+          "supply_price": 5627,
+          "attention_price": null,
+          "value_price": 5627,
+          "sample_count": 86
+        },
+        {
+          "year_month": "2025-12",
+          "supply_price": 5704,
+          "attention_price": null,
+          "value_price": 5704,
+          "sample_count": 75
+        },
+        {
+          "year_month": "2026-01",
+          "supply_price": 5673,
+          "attention_price": null,
+          "value_price": 5673,
+          "sample_count": 76
+        },
+        {
+          "year_month": "2026-02",
+          "supply_price": 5681,
+          "attention_price": null,
+          "value_price": 5681,
+          "sample_count": 60
+        },
+        {
+          "year_month": "2026-03",
+          "supply_price": 5654,
+          "attention_price": null,
+          "value_price": 5654,
+          "sample_count": 128
+        },
+        {
+          "year_month": "2026-04",
+          "supply_price": 5639,
+          "attention_price": null,
+          "value_price": 5639,
+          "sample_count": 115
+        },
+        {
+          "year_month": "2026-05",
+          "supply_price": 5642,
+          "attention_price": null,
+          "value_price": 5642,
+          "sample_count": 95
+        },
+        {
+          "year_month": "2026-06",
+          "supply_price": 5523,
+          "attention_price": null,
+          "value_price": 5523,
+          "sample_count": 107
+        },
+        {
+          "year_month": "2026-07",
+          "supply_price": 5434,
+          "attention_price": null,
+          "value_price": 5434,
+          "sample_count": 123
+        }
+      ],
+      "GS": [],
+      "SX": [],
+      "G1": []
+    }
   },
   "price_distribution": {
     "city": [
@@ -208,6 +326,117 @@
         "percentage": 0.15
       }
     ],
-    "districts": {}
+    "districts": {
+      "ZD": [
+        {
+          "price_range_low": 3200,
+          "price_range_high": 3400,
+          "percentage": 1.36
+        },
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": 1.05
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": 3.16
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": 6.17
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": 8.73
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": 9.49
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": 10.24
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": 10.99
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": 10.24
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": 8.43
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": 8.73
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": 6.17
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": 4.07
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": 2.86
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6200,
+          "percentage": 2.41
+        },
+        {
+          "price_range_low": 6200,
+          "price_range_high": 6400,
+          "percentage": 2.11
+        },
+        {
+          "price_range_low": 6400,
+          "price_range_high": 6600,
+          "percentage": 1.96
+        },
+        {
+          "price_range_low": 6600,
+          "price_range_high": 6800,
+          "percentage": 0.45
+        },
+        {
+          "price_range_low": 6800,
+          "price_range_high": 7000,
+          "percentage": 1.05
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7200,
+          "percentage": 0.15
+        },
+        {
+          "price_range_low": 7200,
+          "price_range_high": 7400,
+          "percentage": 0.15
+        }
+      ],
+      "GS": [],
+      "SX": [],
+      "G1": []
+    }
   }
 }

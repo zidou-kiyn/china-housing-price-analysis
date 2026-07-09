@@ -2,11 +2,19 @@
   "city_code": "qiongzhong",
   "city_name": "琼中",
   "province": "海南",
-  "scraped_at": "2026-07-09T12:22:04",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:43:04",
+  "districts": [
+    {
+      "name": "琼中县",
+      "code": "QA",
+      "city_code": "qiongzhong"
+    }
+  ],
   "price_timeline": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "QA": []
+    }
   },
   "price_distribution": {
     "city": [
@@ -116,6 +124,114 @@
         "percentage": null
       }
     ],
-    "districts": {}
+    "districts": {
+      "QA": [
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": 18.18
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6200,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 6200,
+          "price_range_high": 6400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6400,
+          "price_range_high": 6600,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 6600,
+          "price_range_high": 6800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6800,
+          "price_range_high": 7000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7200,
+          "price_range_high": 7400,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 7400,
+          "price_range_high": 7600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7600,
+          "price_range_high": 7800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7800,
+          "price_range_high": 8000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 8000,
+          "price_range_high": 8200,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 8200,
+          "price_range_high": 8400,
+          "percentage": null
+        }
+      ]
+    }
   }
 }

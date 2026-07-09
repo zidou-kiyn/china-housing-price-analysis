@@ -151,7 +151,10 @@ class AsyncHttpClient:
         if self._session is not None:
             await self._session.close()
 
-    async def get_text(self, url: str, params: dict[str, str] | None = None) -> str:
+    async def get_text(
+        self, url: str, params: dict[str, str] | None = None, min_length: int = 0
+    ) -> str:
+        """min_length > 0 时，正文长度不足视为可重试错误（防反爬兜底短页面污染）。"""
         assert self._session is not None, "AsyncHttpClient 须在 async with 内使用"
         last_exc: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
@@ -166,7 +169,12 @@ class AsyncHttpClient:
                         if resp.status in _RETRYABLE_STATUS:
                             raise _RetryableError(f"HTTP {resp.status}")
                         raise RuntimeError(f"HTTP {resp.status} for {resp.url}")
-                    return await resp.text()
+                    text = await resp.text()
+                    if min_length and len(text) < min_length:
+                        raise _RetryableError(
+                            f"响应过短 {len(text)} < {min_length} for {resp.url}"
+                        )
+                    return text
             except (_RetryableError, aiohttp.ClientError, asyncio.TimeoutError) as exc:
                 last_exc = exc
                 logger.warning("请求失败 (第 %d/%d 次) %s: %s", attempt, self.max_retries, url, exc)
@@ -178,6 +186,8 @@ class AsyncHttpClient:
 
     async def get_json(self, url: str, params: dict[str, str] | None = None) -> dict:
         # creprice 的 JSON 接口 content-type 不稳定，取文本后自行解析。
+        # 无需 min_length 哨兵：反爬兜底短页是 HTML，json.loads 会抛 JSONDecodeError，
+        # 使 _collect_city 失败并标记城市为 failed 而不写 seed，续爬自动重爬（自愈）。
         return json.loads(await self.get_text(url, params=params))
 
 
@@ -271,7 +281,11 @@ class Orchestrator:
             return "scraped"
 
     async def _collect_city(self, city: SeedCity) -> dict:
-        html = await self.client.get_text(f"{_BASE_URL}/city/{city.code}.html")
+        # 正常城市详情页最小约 69000 字节（三沙等小城市），反爬兜底短页约 1432 字节。
+        # 阈值 10000 落在两者之间，短于此即触发重试，避免 0 区县污染写入 seed。
+        html = await self.client.get_text(
+            f"{_BASE_URL}/city/{city.code}.html", min_length=10000
+        )
         districts = CrepriceSource._parse_city_districts(html, city.code)
 
         city_timeline = await self._fetch_timeline(city.code, _CITY_DISTRICT)

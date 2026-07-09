@@ -2,8 +2,29 @@
   "city_code": "bozhouxj",
   "city_name": "博州",
   "province": "新疆",
-  "scraped_at": "2026-07-09T12:15:13",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:50:34",
+  "districts": [
+    {
+      "name": "阿拉山口市",
+      "code": "AL",
+      "city_code": "bozhouxj"
+    },
+    {
+      "name": "博乐市",
+      "code": "BL",
+      "city_code": "bozhouxj"
+    },
+    {
+      "name": "精河县",
+      "code": "JH",
+      "city_code": "bozhouxj"
+    },
+    {
+      "name": "温泉县",
+      "code": "WQ",
+      "city_code": "bozhouxj"
+    }
+  ],
   "price_timeline": {
     "city": [
       {
@@ -98,7 +119,104 @@
         "sample_count": 68
       }
     ],
-    "districts": {}
+    "districts": {
+      "AL": [],
+      "BL": [
+        {
+          "year_month": "2025-07",
+          "supply_price": 4558,
+          "attention_price": null,
+          "value_price": 4558,
+          "sample_count": 65
+        },
+        {
+          "year_month": "2025-08",
+          "supply_price": 4587,
+          "attention_price": null,
+          "value_price": 4587,
+          "sample_count": 67
+        },
+        {
+          "year_month": "2025-09",
+          "supply_price": 4624,
+          "attention_price": null,
+          "value_price": 4624,
+          "sample_count": 45
+        },
+        {
+          "year_month": "2025-10",
+          "supply_price": 4672,
+          "attention_price": null,
+          "value_price": 4672,
+          "sample_count": 50
+        },
+        {
+          "year_month": "2025-11",
+          "supply_price": 5258,
+          "attention_price": null,
+          "value_price": 5258,
+          "sample_count": 50
+        },
+        {
+          "year_month": "2025-12",
+          "supply_price": 4638,
+          "attention_price": null,
+          "value_price": 4638,
+          "sample_count": 35
+        },
+        {
+          "year_month": "2026-01",
+          "supply_price": 4803,
+          "attention_price": null,
+          "value_price": 4803,
+          "sample_count": 42
+        },
+        {
+          "year_month": "2026-02",
+          "supply_price": 4606,
+          "attention_price": null,
+          "value_price": 4606,
+          "sample_count": 26
+        },
+        {
+          "year_month": "2026-03",
+          "supply_price": 4939,
+          "attention_price": null,
+          "value_price": 4939,
+          "sample_count": 50
+        },
+        {
+          "year_month": "2026-04",
+          "supply_price": 5061,
+          "attention_price": null,
+          "value_price": 5061,
+          "sample_count": 76
+        },
+        {
+          "year_month": "2026-05",
+          "supply_price": 5025,
+          "attention_price": null,
+          "value_price": 5025,
+          "sample_count": 63
+        },
+        {
+          "year_month": "2026-06",
+          "supply_price": 4667,
+          "attention_price": null,
+          "value_price": 4667,
+          "sample_count": 69
+        },
+        {
+          "year_month": "2026-07",
+          "supply_price": 4696,
+          "attention_price": null,
+          "value_price": 4696,
+          "sample_count": 68
+        }
+      ],
+      "JH": [],
+      "WQ": []
+    }
   },
   "price_distribution": {
     "city": [
@@ -208,6 +326,117 @@
         "percentage": null
       }
     ],
-    "districts": {}
+    "districts": {
+      "AL": [],
+      "BL": [
+        {
+          "price_range_low": 2000,
+          "price_range_high": 2200,
+          "percentage": 0.57
+        },
+        {
+          "price_range_low": 2200,
+          "price_range_high": 2400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2400,
+          "price_range_high": 2600,
+          "percentage": 1.99
+        },
+        {
+          "price_range_low": 2600,
+          "price_range_high": 2800,
+          "percentage": 3.42
+        },
+        {
+          "price_range_low": 2800,
+          "price_range_high": 3000,
+          "percentage": 12.25
+        },
+        {
+          "price_range_low": 3000,
+          "price_range_high": 3200,
+          "percentage": 13.96
+        },
+        {
+          "price_range_low": 3200,
+          "price_range_high": 3400,
+          "percentage": 9.97
+        },
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": 12.25
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": 9.4
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": 10.26
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": 6.27
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": 4.27
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": 5.41
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": 2.56
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": 2.28
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": 1.99
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": 1.42
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": 0.28
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": 0.85
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": 0.57
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6200,
+          "percentage": null
+        }
+      ],
+      "JH": [],
+      "WQ": []
+    }
   }
 }

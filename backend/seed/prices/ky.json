@@ -2,14 +2,24 @@
   "city_code": "ky",
   "city_name": "昆玉",
   "province": "新疆",
-  "scraped_at": "2026-07-09T12:15:19",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:46:06",
+  "districts": [
+    {
+      "name": "昆玉市",
+      "code": "KZ",
+      "city_code": "ky"
+    }
+  ],
   "price_timeline": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "KZ": []
+    }
   },
   "price_distribution": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "KZ": []
+    }
   }
 }

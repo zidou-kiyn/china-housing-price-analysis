@@ -2,14 +2,73 @@
   "city_code": "gn",
   "city_name": "甘南",
   "province": "甘肃",
-  "scraped_at": "2026-07-09T11:55:32",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:42:11",
+  "districts": [
+    {
+      "name": "合作市",
+      "code": "HZ",
+      "city_code": "gn"
+    },
+    {
+      "name": "迭部县",
+      "code": "DB",
+      "city_code": "gn"
+    },
+    {
+      "name": "临潭县",
+      "code": "LT",
+      "city_code": "gn"
+    },
+    {
+      "name": "碌曲县",
+      "code": "LQ",
+      "city_code": "gn"
+    },
+    {
+      "name": "玛曲县",
+      "code": "MQ",
+      "city_code": "gn"
+    },
+    {
+      "name": "夏河县",
+      "code": "XH",
+      "city_code": "gn"
+    },
+    {
+      "name": "舟曲县",
+      "code": "ZQ",
+      "city_code": "gn"
+    },
+    {
+      "name": "卓尼县",
+      "code": "ZN",
+      "city_code": "gn"
+    }
+  ],
   "price_timeline": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "HZ": [],
+      "DB": [],
+      "LT": [],
+      "LQ": [],
+      "MQ": [],
+      "XH": [],
+      "ZQ": [],
+      "ZN": []
+    }
   },
   "price_distribution": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "HZ": [],
+      "DB": [],
+      "LT": [],
+      "LQ": [],
+      "MQ": [],
+      "XH": [],
+      "ZQ": [],
+      "ZN": []
+    }
   }
 }

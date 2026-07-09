@@ -2,11 +2,37 @@
   "city_code": "haibei",
   "city_name": "海北",
   "province": "青海",
-  "scraped_at": "2026-07-09T12:07:52",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:50:12",
+  "districts": [
+    {
+      "name": "海晏县",
+      "code": "HY",
+      "city_code": "haibei"
+    },
+    {
+      "name": "刚察县",
+      "code": "GC",
+      "city_code": "haibei"
+    },
+    {
+      "name": "门源县",
+      "code": "MY",
+      "city_code": "haibei"
+    },
+    {
+      "name": "祁连县",
+      "code": "QL",
+      "city_code": "haibei"
+    }
+  ],
   "price_timeline": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "HY": [],
+      "GC": [],
+      "MY": [],
+      "QL": []
+    }
   },
   "price_distribution": {
     "city": [
@@ -116,6 +142,117 @@
         "percentage": null
       }
     ],
-    "districts": {}
+    "districts": {
+      "HY": [
+        {
+          "price_range_low": 1600,
+          "price_range_high": 1800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 1800,
+          "price_range_high": 2000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2000,
+          "price_range_high": 2200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2200,
+          "price_range_high": 2400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2400,
+          "price_range_high": 2600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2600,
+          "price_range_high": 2800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2800,
+          "price_range_high": 3000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3000,
+          "price_range_high": 3200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3200,
+          "price_range_high": 3400,
+          "percentage": 50
+        },
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": 50
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": null
+        }
+      ],
+      "GC": [],
+      "MY": [],
+      "QL": []
+    }
   }
 }

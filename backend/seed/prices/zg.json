@@ -2,8 +2,44 @@
   "city_code": "zg",
   "city_name": "自贡",
   "province": "四川",
-  "scraped_at": "2026-07-09T12:14:40",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:45:49",
+  "districts": [
+    {
+      "name": "大安区",
+      "code": "DA",
+      "city_code": "zg"
+    },
+    {
+      "name": "贡井区",
+      "code": "GJ",
+      "city_code": "zg"
+    },
+    {
+      "name": "沿滩区",
+      "code": "YT",
+      "city_code": "zg"
+    },
+    {
+      "name": "自流井区",
+      "code": "ZL",
+      "city_code": "zg"
+    },
+    {
+      "name": "富顺县",
+      "code": "FS",
+      "city_code": "zg"
+    },
+    {
+      "name": "荣县",
+      "code": "RX",
+      "city_code": "zg"
+    },
+    {
+      "name": "高新区",
+      "code": "G1",
+      "city_code": "zg"
+    }
+  ],
   "price_timeline": {
     "city": [
       {
@@ -98,7 +134,567 @@
         "sample_count": 157
       }
     ],
-    "districts": {}
+    "districts": {
+      "DA": [
+        {
+          "year_month": "2025-07",
+          "supply_price": 4722,
+          "attention_price": null,
+          "value_price": 4722,
+          "sample_count": 20
+        },
+        {
+          "year_month": "2025-08",
+          "supply_price": 4787,
+          "attention_price": null,
+          "value_price": 4787,
+          "sample_count": 23
+        },
+        {
+          "year_month": "2025-09",
+          "supply_price": 4451,
+          "attention_price": null,
+          "value_price": 4451,
+          "sample_count": 33
+        },
+        {
+          "year_month": "2025-10",
+          "supply_price": 5047,
+          "attention_price": null,
+          "value_price": 5047,
+          "sample_count": 9
+        },
+        {
+          "year_month": "2025-11",
+          "supply_price": 4826,
+          "attention_price": null,
+          "value_price": 4826,
+          "sample_count": 25
+        },
+        {
+          "year_month": "2025-12",
+          "supply_price": 4727,
+          "attention_price": null,
+          "value_price": 4727,
+          "sample_count": 15
+        },
+        {
+          "year_month": "2026-01",
+          "supply_price": 4583,
+          "attention_price": null,
+          "value_price": 4583,
+          "sample_count": 10
+        },
+        {
+          "year_month": "2026-02",
+          "supply_price": 4881,
+          "attention_price": null,
+          "value_price": 4881,
+          "sample_count": 10
+        },
+        {
+          "year_month": "2026-03",
+          "supply_price": 5553,
+          "attention_price": null,
+          "value_price": 5553,
+          "sample_count": 7
+        },
+        {
+          "year_month": "2026-04",
+          "supply_price": 4746,
+          "attention_price": null,
+          "value_price": 4746,
+          "sample_count": 9
+        },
+        {
+          "year_month": "2026-05",
+          "supply_price": 4820,
+          "attention_price": null,
+          "value_price": 4820,
+          "sample_count": 7
+        },
+        {
+          "year_month": "2026-06",
+          "supply_price": 4987,
+          "attention_price": null,
+          "value_price": 4987,
+          "sample_count": 6
+        },
+        {
+          "year_month": "2026-07",
+          "supply_price": 4866,
+          "attention_price": null,
+          "value_price": 4866,
+          "sample_count": 9
+        }
+      ],
+      "GJ": [
+        {
+          "year_month": "2025-07",
+          "supply_price": 4698,
+          "attention_price": null,
+          "value_price": 4698,
+          "sample_count": 16
+        },
+        {
+          "year_month": "2025-08",
+          "supply_price": 4438,
+          "attention_price": null,
+          "value_price": 4438,
+          "sample_count": 21
+        },
+        {
+          "year_month": "2025-09",
+          "supply_price": 4762,
+          "attention_price": null,
+          "value_price": 4762,
+          "sample_count": 21
+        },
+        {
+          "year_month": "2025-10",
+          "supply_price": 5034,
+          "attention_price": null,
+          "value_price": 5034,
+          "sample_count": 15
+        },
+        {
+          "year_month": "2025-11",
+          "supply_price": 4764,
+          "attention_price": null,
+          "value_price": 4764,
+          "sample_count": 25
+        },
+        {
+          "year_month": "2025-12",
+          "supply_price": 4870,
+          "attention_price": null,
+          "value_price": 4870,
+          "sample_count": 19
+        },
+        {
+          "year_month": "2026-01",
+          "supply_price": 4970,
+          "attention_price": null,
+          "value_price": 4970,
+          "sample_count": 27
+        },
+        {
+          "year_month": "2026-02",
+          "supply_price": 5008,
+          "attention_price": null,
+          "value_price": 5008,
+          "sample_count": 15
+        },
+        {
+          "year_month": "2026-03",
+          "supply_price": 5025,
+          "attention_price": null,
+          "value_price": 5025,
+          "sample_count": 9
+        },
+        {
+          "year_month": "2026-04",
+          "supply_price": 4721,
+          "attention_price": null,
+          "value_price": 4721,
+          "sample_count": 10
+        },
+        {
+          "year_month": "2026-05",
+          "supply_price": 4635,
+          "attention_price": null,
+          "value_price": 4635,
+          "sample_count": 16
+        },
+        {
+          "year_month": "2026-06",
+          "supply_price": 4582,
+          "attention_price": null,
+          "value_price": 4582,
+          "sample_count": 12
+        },
+        {
+          "year_month": "2026-07",
+          "supply_price": 4578,
+          "attention_price": null,
+          "value_price": 4578,
+          "sample_count": 13
+        }
+      ],
+      "YT": [
+        {
+          "year_month": "2025-07",
+          "supply_price": 5951,
+          "attention_price": null,
+          "value_price": 5951,
+          "sample_count": 37
+        },
+        {
+          "year_month": "2025-08",
+          "supply_price": 5865,
+          "attention_price": null,
+          "value_price": 5865,
+          "sample_count": 38
+        },
+        {
+          "year_month": "2025-09",
+          "supply_price": 5924,
+          "attention_price": null,
+          "value_price": 5924,
+          "sample_count": 49
+        },
+        {
+          "year_month": "2025-10",
+          "supply_price": 5709,
+          "attention_price": null,
+          "value_price": 5709,
+          "sample_count": 27
+        },
+        {
+          "year_month": "2025-11",
+          "supply_price": 6293,
+          "attention_price": null,
+          "value_price": 6293,
+          "sample_count": 54
+        },
+        {
+          "year_month": "2025-12",
+          "supply_price": 5885,
+          "attention_price": null,
+          "value_price": 5885,
+          "sample_count": 34
+        },
+        {
+          "year_month": "2026-01",
+          "supply_price": 5718,
+          "attention_price": null,
+          "value_price": 5718,
+          "sample_count": 46
+        },
+        {
+          "year_month": "2026-02",
+          "supply_price": 5982,
+          "attention_price": null,
+          "value_price": 5982,
+          "sample_count": 19
+        },
+        {
+          "year_month": "2026-03",
+          "supply_price": 6251,
+          "attention_price": null,
+          "value_price": 6251,
+          "sample_count": 41
+        },
+        {
+          "year_month": "2026-04",
+          "supply_price": 5595,
+          "attention_price": null,
+          "value_price": 5595,
+          "sample_count": 37
+        },
+        {
+          "year_month": "2026-05",
+          "supply_price": 5955,
+          "attention_price": null,
+          "value_price": 5955,
+          "sample_count": 48
+        },
+        {
+          "year_month": "2026-06",
+          "supply_price": 5788,
+          "attention_price": null,
+          "value_price": 5788,
+          "sample_count": 40
+        },
+        {
+          "year_month": "2026-07",
+          "supply_price": 5650,
+          "attention_price": null,
+          "value_price": 5650,
+          "sample_count": 33
+        }
+      ],
+      "ZL": [
+        {
+          "year_month": "2025-07",
+          "supply_price": 5740,
+          "attention_price": null,
+          "value_price": 5740,
+          "sample_count": 164
+        },
+        {
+          "year_month": "2025-08",
+          "supply_price": 5574,
+          "attention_price": null,
+          "value_price": 5574,
+          "sample_count": 135
+        },
+        {
+          "year_month": "2025-09",
+          "supply_price": 5859,
+          "attention_price": null,
+          "value_price": 5859,
+          "sample_count": 180
+        },
+        {
+          "year_month": "2025-10",
+          "supply_price": 5794,
+          "attention_price": null,
+          "value_price": 5794,
+          "sample_count": 94
+        },
+        {
+          "year_month": "2025-11",
+          "supply_price": 5569,
+          "attention_price": null,
+          "value_price": 5569,
+          "sample_count": 172
+        },
+        {
+          "year_month": "2025-12",
+          "supply_price": 5323,
+          "attention_price": null,
+          "value_price": 5323,
+          "sample_count": 145
+        },
+        {
+          "year_month": "2026-01",
+          "supply_price": 5448,
+          "attention_price": null,
+          "value_price": 5448,
+          "sample_count": 116
+        },
+        {
+          "year_month": "2026-02",
+          "supply_price": 5602,
+          "attention_price": null,
+          "value_price": 5602,
+          "sample_count": 75
+        },
+        {
+          "year_month": "2026-03",
+          "supply_price": 5490,
+          "attention_price": null,
+          "value_price": 5490,
+          "sample_count": 78
+        },
+        {
+          "year_month": "2026-04",
+          "supply_price": 5380,
+          "attention_price": null,
+          "value_price": 5380,
+          "sample_count": 113
+        },
+        {
+          "year_month": "2026-05",
+          "supply_price": 5501,
+          "attention_price": null,
+          "value_price": 5501,
+          "sample_count": 101
+        },
+        {
+          "year_month": "2026-06",
+          "supply_price": 5647,
+          "attention_price": null,
+          "value_price": 5647,
+          "sample_count": 97
+        },
+        {
+          "year_month": "2026-07",
+          "supply_price": 5381,
+          "attention_price": null,
+          "value_price": 5381,
+          "sample_count": 102
+        }
+      ],
+      "FS": [
+        {
+          "year_month": "2025-07",
+          "supply_price": 4903,
+          "attention_price": null,
+          "value_price": 4903,
+          "sample_count": 158
+        },
+        {
+          "year_month": "2025-08",
+          "supply_price": 4399,
+          "attention_price": null,
+          "value_price": 4399,
+          "sample_count": 99
+        },
+        {
+          "year_month": "2025-09",
+          "supply_price": 4538,
+          "attention_price": null,
+          "value_price": 4538,
+          "sample_count": 136
+        },
+        {
+          "year_month": "2025-10",
+          "supply_price": 4623,
+          "attention_price": null,
+          "value_price": 4623,
+          "sample_count": 149
+        },
+        {
+          "year_month": "2025-11",
+          "supply_price": 4623,
+          "attention_price": null,
+          "value_price": 4623,
+          "sample_count": 122
+        },
+        {
+          "year_month": "2025-12",
+          "supply_price": 4628,
+          "attention_price": null,
+          "value_price": 4628,
+          "sample_count": 96
+        },
+        {
+          "year_month": "2026-01",
+          "supply_price": 4583,
+          "attention_price": null,
+          "value_price": 4583,
+          "sample_count": 17
+        },
+        {
+          "year_month": "2026-02",
+          "supply_price": 4485,
+          "attention_price": null,
+          "value_price": 4485,
+          "sample_count": 14
+        },
+        {
+          "year_month": "2026-03",
+          "supply_price": 4811,
+          "attention_price": null,
+          "value_price": 4811,
+          "sample_count": 31
+        },
+        {
+          "year_month": "2026-04",
+          "supply_price": 4900,
+          "attention_price": null,
+          "value_price": 4900,
+          "sample_count": 28
+        },
+        {
+          "year_month": "2026-05",
+          "supply_price": 4690,
+          "attention_price": null,
+          "value_price": 4690,
+          "sample_count": 28
+        },
+        {
+          "year_month": "2026-06",
+          "supply_price": 4856,
+          "attention_price": null,
+          "value_price": 4856,
+          "sample_count": 42
+        },
+        {
+          "year_month": "2026-07",
+          "supply_price": 4487,
+          "attention_price": null,
+          "value_price": 4487,
+          "sample_count": 45
+        }
+      ],
+      "RX": [
+        {
+          "year_month": "2025-07",
+          "supply_price": 4461,
+          "attention_price": null,
+          "value_price": 4461,
+          "sample_count": 8
+        },
+        {
+          "year_month": "2025-08",
+          "supply_price": 4684,
+          "attention_price": null,
+          "value_price": 4684,
+          "sample_count": 8
+        },
+        {
+          "year_month": "2025-09",
+          "supply_price": 4116,
+          "attention_price": null,
+          "value_price": 4116,
+          "sample_count": 11
+        },
+        {
+          "year_month": "2025-10",
+          "supply_price": 4705,
+          "attention_price": null,
+          "value_price": 4705,
+          "sample_count": 6
+        },
+        {
+          "year_month": "2025-11",
+          "supply_price": 5000,
+          "attention_price": null,
+          "value_price": 5000,
+          "sample_count": 6
+        },
+        {
+          "year_month": "2025-12",
+          "supply_price": 5030,
+          "attention_price": null,
+          "value_price": 5030,
+          "sample_count": 5
+        },
+        {
+          "year_month": "2026-01",
+          "supply_price": 5001,
+          "attention_price": null,
+          "value_price": 5001,
+          "sample_count": 12
+        },
+        {
+          "year_month": "2026-02",
+          "supply_price": 5251,
+          "attention_price": null,
+          "value_price": 5251,
+          "sample_count": 5
+        },
+        {
+          "year_month": "2026-03",
+          "supply_price": null,
+          "attention_price": null,
+          "value_price": null,
+          "sample_count": null
+        },
+        {
+          "year_month": "2026-04",
+          "supply_price": null,
+          "attention_price": null,
+          "value_price": null,
+          "sample_count": null
+        },
+        {
+          "year_month": "2026-05",
+          "supply_price": null,
+          "attention_price": null,
+          "value_price": null,
+          "sample_count": null
+        },
+        {
+          "year_month": "2026-06",
+          "supply_price": null,
+          "attention_price": null,
+          "value_price": null,
+          "sample_count": null
+        },
+        {
+          "year_month": "2026-07",
+          "supply_price": null,
+          "attention_price": null,
+          "value_price": null,
+          "sample_count": null
+        }
+      ],
+      "G1": []
+    }
   },
   "price_distribution": {
     "city": [
@@ -208,6 +804,650 @@
         "percentage": 0.1
       }
     ],
-    "districts": {}
+    "districts": {
+      "DA": [
+        {
+          "price_range_low": 1800,
+          "price_range_high": 2000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2000,
+          "price_range_high": 2200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2200,
+          "price_range_high": 2400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2400,
+          "price_range_high": 2600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2600,
+          "price_range_high": 2800,
+          "percentage": 3.92
+        },
+        {
+          "price_range_low": 2800,
+          "price_range_high": 3000,
+          "percentage": 9.8
+        },
+        {
+          "price_range_low": 3000,
+          "price_range_high": 3200,
+          "percentage": 11.76
+        },
+        {
+          "price_range_low": 3200,
+          "price_range_high": 3400,
+          "percentage": 15.69
+        },
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": 15.69
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": 3.92
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": 3.92
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": 11.76
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": 3.92
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": 3.92
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": 9.8
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": 1.96
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": 3.92
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": null
+        }
+      ],
+      "GJ": [
+        {
+          "price_range_low": 2200,
+          "price_range_high": 2400,
+          "percentage": 3.13
+        },
+        {
+          "price_range_low": 2400,
+          "price_range_high": 2600,
+          "percentage": 1.04
+        },
+        {
+          "price_range_low": 2600,
+          "price_range_high": 2800,
+          "percentage": 1.04
+        },
+        {
+          "price_range_low": 2800,
+          "price_range_high": 3000,
+          "percentage": 6.25
+        },
+        {
+          "price_range_low": 3000,
+          "price_range_high": 3200,
+          "percentage": 8.33
+        },
+        {
+          "price_range_low": 3200,
+          "price_range_high": 3400,
+          "percentage": 7.29
+        },
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": 13.54
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": 14.58
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": 7.29
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": 9.38
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": 10.42
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": 4.17
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": 4.17
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": 5.21
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": 2.08
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": 2.08
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6200,
+          "price_range_high": 6400,
+          "percentage": null
+        }
+      ],
+      "YT": [
+        {
+          "price_range_low": 1000,
+          "price_range_high": 1500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 1500,
+          "price_range_high": 2000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2000,
+          "price_range_high": 2500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2500,
+          "price_range_high": 3000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3000,
+          "price_range_high": 3500,
+          "percentage": 4.26
+        },
+        {
+          "price_range_low": 3500,
+          "price_range_high": 4000,
+          "percentage": 19.15
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4500,
+          "percentage": 18.3
+        },
+        {
+          "price_range_low": 4500,
+          "price_range_high": 5000,
+          "percentage": 16.6
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5500,
+          "percentage": 9.36
+        },
+        {
+          "price_range_low": 5500,
+          "price_range_high": 6000,
+          "percentage": 13.62
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6500,
+          "percentage": 10.21
+        },
+        {
+          "price_range_low": 6500,
+          "price_range_high": 7000,
+          "percentage": 3.4
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7500,
+          "percentage": 0.85
+        },
+        {
+          "price_range_low": 7500,
+          "price_range_high": 8000,
+          "percentage": 2.98
+        },
+        {
+          "price_range_low": 8000,
+          "price_range_high": 8500,
+          "percentage": 0.85
+        },
+        {
+          "price_range_low": 8500,
+          "price_range_high": 9000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 9000,
+          "price_range_high": 9500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 9500,
+          "price_range_high": 10000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 10000,
+          "price_range_high": 10500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 10500,
+          "price_range_high": 11000,
+          "percentage": 0.43
+        },
+        {
+          "price_range_low": 11000,
+          "price_range_high": 11500,
+          "percentage": null
+        }
+      ],
+      "ZL": [
+        {
+          "price_range_low": 1000,
+          "price_range_high": 1500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 1500,
+          "price_range_high": 2000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 2000,
+          "price_range_high": 2500,
+          "percentage": 1.13
+        },
+        {
+          "price_range_low": 2500,
+          "price_range_high": 3000,
+          "percentage": 2.73
+        },
+        {
+          "price_range_low": 3000,
+          "price_range_high": 3500,
+          "percentage": 8.2
+        },
+        {
+          "price_range_low": 3500,
+          "price_range_high": 4000,
+          "percentage": 13.18
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4500,
+          "percentage": 18.33
+        },
+        {
+          "price_range_low": 4500,
+          "price_range_high": 5000,
+          "percentage": 11.25
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5500,
+          "percentage": 9.32
+        },
+        {
+          "price_range_low": 5500,
+          "price_range_high": 6000,
+          "percentage": 9.65
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6500,
+          "percentage": 10.29
+        },
+        {
+          "price_range_low": 6500,
+          "price_range_high": 7000,
+          "percentage": 6.27
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7500,
+          "percentage": 4.34
+        },
+        {
+          "price_range_low": 7500,
+          "price_range_high": 8000,
+          "percentage": 3.38
+        },
+        {
+          "price_range_low": 8000,
+          "price_range_high": 8500,
+          "percentage": 0.8
+        },
+        {
+          "price_range_low": 8500,
+          "price_range_high": 9000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 9000,
+          "price_range_high": 9500,
+          "percentage": 0.16
+        },
+        {
+          "price_range_low": 9500,
+          "price_range_high": 10000,
+          "percentage": 0.48
+        },
+        {
+          "price_range_low": 10000,
+          "price_range_high": 10500,
+          "percentage": 0.16
+        },
+        {
+          "price_range_low": 10500,
+          "price_range_high": 11000,
+          "percentage": 0.16
+        },
+        {
+          "price_range_low": 11000,
+          "price_range_high": 11500,
+          "percentage": 0.16
+        }
+      ],
+      "FS": [
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": 3.16
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": 4.43
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": 9.49
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": 8.86
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": 8.23
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": 6.33
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": 6.33
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": 5.06
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": 5.7
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": 4.43
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": 8.23
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": 5.7
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": 1.9
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6200,
+          "percentage": 6.33
+        },
+        {
+          "price_range_low": 6200,
+          "price_range_high": 6400,
+          "percentage": 6.33
+        },
+        {
+          "price_range_low": 6400,
+          "price_range_high": 6600,
+          "percentage": 3.16
+        },
+        {
+          "price_range_low": 6600,
+          "price_range_high": 6800,
+          "percentage": 1.9
+        },
+        {
+          "price_range_low": 6800,
+          "price_range_high": 7000,
+          "percentage": 1.9
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7200,
+          "percentage": 1.27
+        },
+        {
+          "price_range_low": 7200,
+          "price_range_high": 7400,
+          "percentage": 1.27
+        },
+        {
+          "price_range_low": 7400,
+          "price_range_high": 7600,
+          "percentage": null
+        }
+      ],
+      "RX": [
+        {
+          "price_range_low": 3000,
+          "price_range_high": 3200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3200,
+          "price_range_high": 3400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": 18.18
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": 9.09
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": 18.18
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": 27.27
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": 18.18
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": 4.55
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": 4.55
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6200,
+          "price_range_high": 6400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6400,
+          "price_range_high": 6600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6600,
+          "price_range_high": 6800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6800,
+          "price_range_high": 7000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7200,
+          "percentage": null
+        }
+      ],
+      "G1": []
+    }
   }
 }

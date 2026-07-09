@@ -2,14 +2,38 @@
   "city_code": "ss",
   "city_name": "三沙",
   "province": "海南",
-  "scraped_at": "2026-07-09T12:22:05",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:43:09",
+  "districts": [
+    {
+      "name": "南沙区",
+      "code": "NS",
+      "city_code": "ss"
+    },
+    {
+      "name": "西沙区",
+      "code": "XS",
+      "city_code": "ss"
+    },
+    {
+      "name": "中沙群岛",
+      "code": "ZS",
+      "city_code": "ss"
+    }
+  ],
   "price_timeline": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "NS": [],
+      "XS": [],
+      "ZS": []
+    }
   },
   "price_distribution": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "NS": [],
+      "XS": [],
+      "ZS": []
+    }
   }
 }

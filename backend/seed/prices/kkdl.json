@@ -2,14 +2,24 @@
   "city_code": "kkdl",
   "city_name": "可克达拉",
   "province": "新疆",
-  "scraped_at": "2026-07-09T12:15:18",
-  "districts": [],
+  "scraped_at": "2026-07-09T12:46:02",
+  "districts": [
+    {
+      "name": "可克达拉市",
+      "code": "KL",
+      "city_code": "kkdl"
+    }
+  ],
   "price_timeline": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "KL": []
+    }
   },
   "price_distribution": {
     "city": [],
-    "districts": {}
+    "districts": {
+      "KL": []
+    }
   }
 }

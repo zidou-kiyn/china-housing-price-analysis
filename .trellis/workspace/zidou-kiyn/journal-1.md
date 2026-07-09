@@ -48,3 +48,37 @@
 - **破坏性清理**（本地状态、gitignore、不可逆，父任务 grilling 锁定授权）：清空 prediction 表（6→0）、删 `backend/models/` 全部模型 + active.json + 遗留 `models.bak-governance/`；空窗期至 full-data-crawl 完成后重训 v1.8。
 - **覆盖塌缩（有意为之）**：年度城市不再可预测（无 creprice→404）、混合城市仅 monthly；据此改写 2 个既有预测覆盖测试。
 - 验证：后端 397 passed（live 网络测试 deselect，缺国内 IP 既有失败）、前端 build、浏览器实测（泉州 creprice 仅 2025-07 起 vs 58 年度 2011-2024、切换器刷新持久化、NBS 指数曲线、预测入口按源显隐、空窗 404+NO_ACTIVE_MODEL、报告 unknown 降级）。
+
+
+## Session 1: 代理IP池批量爬取全量城市房价数据并写入Seed
+
+**Date**: 2026-07-09
+**Task**: 代理IP池批量爬取全量城市房价数据并写入Seed
+**Branch**: `main`
+
+### Summary
+
+新增独立脚本 backend/scripts/seed_scraper.py(令牌桶限速+aiohttp异步代理客户端+断点续爬),复用 CrepriceSource 解析逻辑;app/services/seed.py 新增 seed_prices_if_needed() 在启动时增量导入 seed 数据(INSERT ON CONFLICT DO NOTHING 只补不覆盖)。用户提供的隧道代理实跑验证:全量368城市爬取成功。复核中发现并修复关键数据质量bug——反爬触发时城市详情页偶发返回HTTP 200+短兜底页面,导致120个城市(含广州/南京/武汉等大城市)区县数据被静默污染为空数组;修复方案是给HTML响应加内容长度哨兵(min_length=10000)使其被识别为可重试错误。重爬后368个城市全部有正确区县数据,总区县数从2291增至3304。数据库加载器(seed_prices_if_needed)因本机无Postgres环境未做端到端实测,待部署环境验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c7d5a00` | (see git log) |
+| `621c78b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

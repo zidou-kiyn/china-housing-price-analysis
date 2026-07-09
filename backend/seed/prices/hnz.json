@@ -1,0 +1,371 @@
+{
+  "city_code": "hnz",
+  "city_name": "海南州",
+  "province": "青海",
+  "scraped_at": "2026-07-09T12:08:08",
+  "districts": [
+    {
+      "name": "共和县",
+      "code": "GH",
+      "city_code": "hnz"
+    },
+    {
+      "name": "贵德县",
+      "code": "GD",
+      "city_code": "hnz"
+    },
+    {
+      "name": "贵南县",
+      "code": "GN",
+      "city_code": "hnz"
+    },
+    {
+      "name": "同德县",
+      "code": "TD",
+      "city_code": "hnz"
+    },
+    {
+      "name": "兴海县",
+      "code": "XH",
+      "city_code": "hnz"
+    }
+  ],
+  "price_timeline": {
+    "city": [],
+    "districts": {
+      "GH": [],
+      "GD": [],
+      "GN": [],
+      "TD": [],
+      "XH": []
+    }
+  },
+  "price_distribution": {
+    "city": [
+      {
+        "price_range_low": 3000,
+        "price_range_high": 3200,
+        "percentage": null
+      },
+      {
+        "price_range_low": 3200,
+        "price_range_high": 3400,
+        "percentage": null
+      },
+      {
+        "price_range_low": 3400,
+        "price_range_high": 3600,
+        "percentage": null
+      },
+      {
+        "price_range_low": 3600,
+        "price_range_high": 3800,
+        "percentage": 20
+      },
+      {
+        "price_range_low": 3800,
+        "price_range_high": 4000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 4000,
+        "price_range_high": 4200,
+        "percentage": null
+      },
+      {
+        "price_range_low": 4200,
+        "price_range_high": 4400,
+        "percentage": 40
+      },
+      {
+        "price_range_low": 4400,
+        "price_range_high": 4600,
+        "percentage": null
+      },
+      {
+        "price_range_low": 4600,
+        "price_range_high": 4800,
+        "percentage": 20
+      },
+      {
+        "price_range_low": 4800,
+        "price_range_high": 5000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 5000,
+        "price_range_high": 5200,
+        "percentage": null
+      },
+      {
+        "price_range_low": 5200,
+        "price_range_high": 5400,
+        "percentage": null
+      },
+      {
+        "price_range_low": 5400,
+        "price_range_high": 5600,
+        "percentage": null
+      },
+      {
+        "price_range_low": 5600,
+        "price_range_high": 5800,
+        "percentage": null
+      },
+      {
+        "price_range_low": 5800,
+        "price_range_high": 6000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 6000,
+        "price_range_high": 6200,
+        "percentage": 20
+      },
+      {
+        "price_range_low": 6200,
+        "price_range_high": 6400,
+        "percentage": null
+      },
+      {
+        "price_range_low": 6400,
+        "price_range_high": 6600,
+        "percentage": null
+      },
+      {
+        "price_range_low": 6600,
+        "price_range_high": 6800,
+        "percentage": null
+      },
+      {
+        "price_range_low": 6800,
+        "price_range_high": 7000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 7000,
+        "price_range_high": 7200,
+        "percentage": null
+      }
+    ],
+    "districts": {
+      "GH": [
+        {
+          "price_range_low": 3000,
+          "price_range_high": 3200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3200,
+          "price_range_high": 3400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": 20
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": 40
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": 20
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6200,
+          "percentage": 20
+        },
+        {
+          "price_range_low": 6200,
+          "price_range_high": 6400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6400,
+          "price_range_high": 6600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6600,
+          "price_range_high": 6800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6800,
+          "price_range_high": 7000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7200,
+          "percentage": null
+        }
+      ],
+      "GD": [
+        {
+          "price_range_low": 3400,
+          "price_range_high": 3600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3600,
+          "price_range_high": 3800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 3800,
+          "price_range_high": 4000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4200,
+          "price_range_high": 4400,
+          "percentage": 50
+        },
+        {
+          "price_range_low": 4400,
+          "price_range_high": 4600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4600,
+          "price_range_high": 4800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4800,
+          "price_range_high": 5000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5200,
+          "price_range_high": 5400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5400,
+          "price_range_high": 5600,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5600,
+          "price_range_high": 5800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5800,
+          "price_range_high": 6000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6200,
+          "price_range_high": 6400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6400,
+          "price_range_high": 6600,
+          "percentage": 50
+        },
+        {
+          "price_range_low": 6600,
+          "price_range_high": 6800,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6800,
+          "price_range_high": 7000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7200,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7200,
+          "price_range_high": 7400,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7400,
+          "price_range_high": 7600,
+          "percentage": null
+        }
+      ],
+      "GN": [],
+      "TD": [],
+      "XH": []
+    }
+  }
+}

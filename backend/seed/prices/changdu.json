@@ -1,0 +1,307 @@
+{
+  "city_code": "changdu",
+  "city_name": "昌都",
+  "province": "西藏",
+  "scraped_at": "2026-07-09T12:15:59",
+  "districts": [
+    {
+      "name": "卡若区",
+      "code": "KR",
+      "city_code": "changdu"
+    },
+    {
+      "name": "八宿县",
+      "code": "BS",
+      "city_code": "changdu"
+    },
+    {
+      "name": "边坝县",
+      "code": "BB",
+      "city_code": "changdu"
+    },
+    {
+      "name": "察雅县",
+      "code": "CY",
+      "city_code": "changdu"
+    },
+    {
+      "name": "丁青县",
+      "code": "DQ",
+      "city_code": "changdu"
+    },
+    {
+      "name": "贡觉县",
+      "code": "GJ",
+      "city_code": "changdu"
+    },
+    {
+      "name": "江达县",
+      "code": "JD",
+      "city_code": "changdu"
+    },
+    {
+      "name": "类乌齐县",
+      "code": "LW",
+      "city_code": "changdu"
+    },
+    {
+      "name": "洛隆县",
+      "code": "LL",
+      "city_code": "changdu"
+    },
+    {
+      "name": "芒康县",
+      "code": "MK",
+      "city_code": "changdu"
+    },
+    {
+      "name": "左贡县",
+      "code": "ZG",
+      "city_code": "changdu"
+    }
+  ],
+  "price_timeline": {
+    "city": [],
+    "districts": {
+      "KR": [],
+      "BS": [],
+      "BB": [],
+      "CY": [],
+      "DQ": [],
+      "GJ": [],
+      "JD": [],
+      "LW": [],
+      "LL": [],
+      "MK": [],
+      "ZG": []
+    }
+  },
+  "price_distribution": {
+    "city": [
+      {
+        "price_range_low": 4000,
+        "price_range_high": 4500,
+        "percentage": null
+      },
+      {
+        "price_range_low": 4500,
+        "price_range_high": 5000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 5000,
+        "price_range_high": 5500,
+        "percentage": 25
+      },
+      {
+        "price_range_low": 5500,
+        "price_range_high": 6000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 6000,
+        "price_range_high": 6500,
+        "percentage": null
+      },
+      {
+        "price_range_low": 6500,
+        "price_range_high": 7000,
+        "percentage": 25
+      },
+      {
+        "price_range_low": 7000,
+        "price_range_high": 7500,
+        "percentage": null
+      },
+      {
+        "price_range_low": 7500,
+        "price_range_high": 8000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 8000,
+        "price_range_high": 8500,
+        "percentage": null
+      },
+      {
+        "price_range_low": 8500,
+        "price_range_high": 9000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 9000,
+        "price_range_high": 9500,
+        "percentage": null
+      },
+      {
+        "price_range_low": 9500,
+        "price_range_high": 10000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 10000,
+        "price_range_high": 10500,
+        "percentage": null
+      },
+      {
+        "price_range_low": 10500,
+        "price_range_high": 11000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 11000,
+        "price_range_high": 11500,
+        "percentage": 25
+      },
+      {
+        "price_range_low": 11500,
+        "price_range_high": 12000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 12000,
+        "price_range_high": 12500,
+        "percentage": null
+      },
+      {
+        "price_range_low": 12500,
+        "price_range_high": 13000,
+        "percentage": 25
+      },
+      {
+        "price_range_low": 13000,
+        "price_range_high": 13500,
+        "percentage": null
+      },
+      {
+        "price_range_low": 13500,
+        "price_range_high": 14000,
+        "percentage": null
+      },
+      {
+        "price_range_low": 14000,
+        "price_range_high": 14500,
+        "percentage": null
+      }
+    ],
+    "districts": {
+      "KR": [
+        {
+          "price_range_low": 4000,
+          "price_range_high": 4500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 4500,
+          "price_range_high": 5000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 5000,
+          "price_range_high": 5500,
+          "percentage": 25
+        },
+        {
+          "price_range_low": 5500,
+          "price_range_high": 6000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6000,
+          "price_range_high": 6500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 6500,
+          "price_range_high": 7000,
+          "percentage": 25
+        },
+        {
+          "price_range_low": 7000,
+          "price_range_high": 7500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 7500,
+          "price_range_high": 8000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 8000,
+          "price_range_high": 8500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 8500,
+          "price_range_high": 9000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 9000,
+          "price_range_high": 9500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 9500,
+          "price_range_high": 10000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 10000,
+          "price_range_high": 10500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 10500,
+          "price_range_high": 11000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 11000,
+          "price_range_high": 11500,
+          "percentage": 25
+        },
+        {
+          "price_range_low": 11500,
+          "price_range_high": 12000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 12000,
+          "price_range_high": 12500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 12500,
+          "price_range_high": 13000,
+          "percentage": 25
+        },
+        {
+          "price_range_low": 13000,
+          "price_range_high": 13500,
+          "percentage": null
+        },
+        {
+          "price_range_low": 13500,
+          "price_range_high": 14000,
+          "percentage": null
+        },
+        {
+          "price_range_low": 14000,
+          "price_range_high": 14500,
+          "percentage": null
+        }
+      ],
+      "BS": [],
+      "BB": [],
+      "CY": [],
+      "DQ": [],
+      "GJ": [],
+      "JD": [],
+      "LW": [],
+      "LL": [],
+      "MK": [],
+      "ZG": []
+    }
+  }
+}

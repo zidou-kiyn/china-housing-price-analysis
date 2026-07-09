@@ -1,0 +1,46 @@
+{
+  "city_code": "huangnan",
+  "city_name": "黄南",
+  "province": "青海",
+  "scraped_at": "2026-07-09T12:08:08",
+  "districts": [
+    {
+      "name": "同仁市",
+      "code": "TR",
+      "city_code": "huangnan"
+    },
+    {
+      "name": "河南县",
+      "code": "HO",
+      "city_code": "huangnan"
+    },
+    {
+      "name": "尖扎县",
+      "code": "JZ",
+      "city_code": "huangnan"
+    },
+    {
+      "name": "泽库县",
+      "code": "ZK",
+      "city_code": "huangnan"
+    }
+  ],
+  "price_timeline": {
+    "city": [],
+    "districts": {
+      "TR": [],
+      "HO": [],
+      "JZ": [],
+      "ZK": []
+    }
+  },
+  "price_distribution": {
+    "city": [],
+    "districts": {
+      "TR": [],
+      "HO": [],
+      "JZ": [],
+      "ZK": []
+    }
+  }
+}

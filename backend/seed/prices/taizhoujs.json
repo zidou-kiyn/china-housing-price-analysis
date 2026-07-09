@@ -1,0 +1,213 @@
+{
+  "city_code": "taizhoujs",
+  "city_name": "泰州",
+  "province": "江苏",
+  "scraped_at": "2026-07-09T12:26:41",
+  "districts": [],
+  "price_timeline": {
+    "city": [
+      {
+        "year_month": "2025-07",
+        "supply_price": 7041,
+        "attention_price": 11475,
+        "value_price": 7041,
+        "sample_count": 715
+      },
+      {
+        "year_month": "2025-08",
+        "supply_price": 7082,
+        "attention_price": null,
+        "value_price": 7082,
+        "sample_count": 940
+      },
+      {
+        "year_month": "2025-09",
+        "supply_price": 7029,
+        "attention_price": 14142,
+        "value_price": 7029,
+        "sample_count": 590
+      },
+      {
+        "year_month": "2025-10",
+        "supply_price": 6434,
+        "attention_price": null,
+        "value_price": 6434,
+        "sample_count": 419
+      },
+      {
+        "year_month": "2025-11",
+        "supply_price": 6441,
+        "attention_price": 10058,
+        "value_price": 6441,
+        "sample_count": 502
+      },
+      {
+        "year_month": "2025-12",
+        "supply_price": 6496,
+        "attention_price": null,
+        "value_price": 6496,
+        "sample_count": 516
+      },
+      {
+        "year_month": "2026-01",
+        "supply_price": 6421,
+        "attention_price": 10976,
+        "value_price": 6421,
+        "sample_count": 408
+      },
+      {
+        "year_month": "2026-02",
+        "supply_price": 6485,
+        "attention_price": 9054,
+        "value_price": 6485,
+        "sample_count": 228
+      },
+      {
+        "year_month": "2026-03",
+        "supply_price": 6525,
+        "attention_price": 9342,
+        "value_price": 6525,
+        "sample_count": 465
+      },
+      {
+        "year_month": "2026-04",
+        "supply_price": 6406,
+        "attention_price": null,
+        "value_price": 6406,
+        "sample_count": 483
+      },
+      {
+        "year_month": "2026-05",
+        "supply_price": 6478,
+        "attention_price": 10295,
+        "value_price": 6478,
+        "sample_count": 485
+      },
+      {
+        "year_month": "2026-06",
+        "supply_price": 6498,
+        "attention_price": null,
+        "value_price": 6498,
+        "sample_count": 459
+      },
+      {
+        "year_month": "2026-07",
+        "supply_price": 6456,
+        "attention_price": null,
+        "value_price": 6456,
+        "sample_count": 483
+      }
+    ],
+    "districts": {}
+  },
+  "price_distribution": {
+    "city": [
+      {
+        "price_range_low": 6000,
+        "price_range_high": 6500,
+        "percentage": 3.45
+      },
+      {
+        "price_range_low": 6500,
+        "price_range_high": 7000,
+        "percentage": 6.66
+      },
+      {
+        "price_range_low": 7000,
+        "price_range_high": 7500,
+        "percentage": 8.79
+      },
+      {
+        "price_range_low": 7500,
+        "price_range_high": 8000,
+        "percentage": 9.91
+      },
+      {
+        "price_range_low": 8000,
+        "price_range_high": 8500,
+        "percentage": 9.67
+      },
+      {
+        "price_range_low": 8500,
+        "price_range_high": 9000,
+        "percentage": 9.63
+      },
+      {
+        "price_range_low": 9000,
+        "price_range_high": 9500,
+        "percentage": 8.91
+      },
+      {
+        "price_range_low": 9500,
+        "price_range_high": 10000,
+        "percentage": 6.86
+      },
+      {
+        "price_range_low": 10000,
+        "price_range_high": 10500,
+        "percentage": 6.82
+      },
+      {
+        "price_range_low": 10500,
+        "price_range_high": 11000,
+        "percentage": 5.06
+      },
+      {
+        "price_range_low": 11000,
+        "price_range_high": 11500,
+        "percentage": 5.42
+      },
+      {
+        "price_range_low": 11500,
+        "price_range_high": 12000,
+        "percentage": 3.93
+      },
+      {
+        "price_range_low": 12000,
+        "price_range_high": 12500,
+        "percentage": 3.13
+      },
+      {
+        "price_range_low": 12500,
+        "price_range_high": 13000,
+        "percentage": 3.21
+      },
+      {
+        "price_range_low": 13000,
+        "price_range_high": 13500,
+        "percentage": 2.25
+      },
+      {
+        "price_range_low": 13500,
+        "price_range_high": 14000,
+        "percentage": 1.81
+      },
+      {
+        "price_range_low": 14000,
+        "price_range_high": 14500,
+        "percentage": 1.61
+      },
+      {
+        "price_range_low": 14500,
+        "price_range_high": 15000,
+        "percentage": 1.28
+      },
+      {
+        "price_range_low": 15000,
+        "price_range_high": 15500,
+        "percentage": 0.64
+      },
+      {
+        "price_range_low": 15500,
+        "price_range_high": 16000,
+        "percentage": 0.76
+      },
+      {
+        "price_range_low": 16000,
+        "price_range_high": 16500,
+        "percentage": 0.2
+      }
+    ],
+    "districts": {}
+  }
+}

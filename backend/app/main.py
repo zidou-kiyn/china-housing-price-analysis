@@ -8,11 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.cache import redis_client
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import async_session_factory, engine
 from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
 from app.services.job_runner import cleanup_stale_jobs
-from app.services.seed import seed_cities_if_empty
+from app.services.seed import seed_cities_if_empty, seed_prices_if_needed
 
 setup_logging(settings.log_level)
 access_logger = logging.getLogger("app.access")
@@ -22,6 +22,8 @@ access_logger = logging.getLogger("app.access")
 async def lifespan(app: FastAPI):
     await cleanup_stale_jobs()
     await seed_cities_if_empty()
+    async with async_session_factory() as session:
+        await seed_prices_if_needed(session)
     yield
     await engine.dispose()
     await redis_client.aclose()

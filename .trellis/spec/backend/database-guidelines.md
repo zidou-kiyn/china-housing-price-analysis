@@ -80,6 +80,26 @@ Real contracts from the multi-source collection work (2026-07, updated after cre
 
 ---
 
+## Seed Data Ingestion Pattern (proxy-seed-scraper, 2026-07)
+
+Real contracts from batch-seeding 368 cities' price data via `backend/scripts/seed_scraper.py` (standalone, not part of the app) + `app/services/seed.py::seed_prices_if_needed()` (runs in `lifespan`, after `seed_cities_if_empty()`).
+
+- **Version-gated incremental load**: version = `f"{file_count}:{max_mtime}"` over `backend/seed/prices/*.json`, stored in `app_setting` (key `seed_price_version`, via `app_settings.get_setting`/`set_setting`). Unchanged version → no-op; this makes the lifespan hook cheap on every normal restart.
+- **Load order follows FK dependency, not table alphabetical order**: city (already seeded) → district (needs `city.id`) → price_snapshot / price_distribution (needs `district.id` or `city.id` depending on `region_type`). Build the `code → id` map by querying, not by trusting seed-file order.
+- **Every insert is `INSERT ... ON CONFLICT DO NOTHING`** keyed on the same unique constraints real collection writes use (`District.code` unique; `uq_price_snapshot_region_month_source`; `uq_price_distribution_region_range`). This is what makes seed data non-destructive: a seed row and a real-collector row for the same `(region_type, region_id, year_month, source="creprice")` key can never overwrite each other — whichever lands first wins, seed data is a pure "fill the gaps" pass. Do not switch to upsert/`ON CONFLICT DO UPDATE` here — that would let stale seed data clobber fresher real collection.
+- Seed JSON rows must be run through the **same cleaners/validator as live collection** (`app/pipeline/cleaners.clean_price_timeline`/`clean_price_distribution`, `app/pipeline/snapshot_validator.validate_snapshot_records`) before insert — seed data is not pre-trusted just because it's bundled.
+- Batch inserts are chunked (500 rows) to avoid oversized single statements; chunking must never split rows that conflict with each other in the same `ON CONFLICT DO NOTHING` statement (not an issue here since each chunk comes from one region's data, which is internally unique by construction).
+
+### Standalone scraper against a rotating tunnel proxy: expect periodic batch failures
+
+When `seed_scraper.py` ran the full 368-city crawl through a 隧道代理 (tunnel proxy, e.g. 青果网络), it observed a repeatable pattern: ~2-3 minutes into a run, a burst of ~30-80 seconds where many *different* cities' requests fail together with `HTTP 456` (creprice.cn's anti-bot status code), then recovery to normal success rates. Across 4 resume passes the failure count converged 368 → 116 → 57 → 1 → 0.
+
+- **Unconfirmed hypothesis, confirmed phenomenon**: this looks consistent with `aiohttp.ClientSession`'s default connection pooling keeping a keep-alive connection to the proxy alive across many requests — if the tunnel proxy assigns a new exit IP per new TCP connection (not per request), a reused pooled connection would pin one exit IP long enough for creprice's rate limiter to flag it, explaining why failures cluster instead of spreading evenly. **This was not root-caused** (no `force_close`/fresh-connector experiment was run) — treat it as a plausible explanation, not a fix prescription.
+- **What actually resolved it**: nothing code-side. The scraper's existing resume design (`SeedFileManager.should_scrape` + atomic write) already treats "some cities failed this run" as the expected case — just re-run the same command; already-written cities are skipped, only failures are retried, and the failure set shrinks geometrically each pass.
+- **Operational takeaway for any future one-off batch-scrape-via-tunnel-proxy task**: budget for multiple resume passes (not a single long run), and do not treat a non-zero `失败` count or a non-zero script exit code as a bug — it's the designed signal to re-run.
+
+---
+
 ## Common Mistakes
 
 <!-- Database-related mistakes your team has made -->

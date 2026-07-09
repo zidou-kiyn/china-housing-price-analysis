@@ -24,6 +24,11 @@ Validation commands: `.venv/bin/python -m ruff check app tests scripts`,
 - **`model_*` field names in pydantic-settings/BaseModel** — collides with pydantic v2
   protected namespaces (e.g. use `ml_model_dir`, not `model_dir`; or set
   `model_config = {"protected_namespaces": ()}` as in `app/schemas/predict.py`).
+- **`aiohttp[socks]`** — this extra does not exist; `pip`/`uv` will not error but SOCKS
+  proxy support silently isn't installed. For SOCKS5 tunnel proxies use the separate
+  `aiohttp-socks` package (`ProxyConnector.from_url(...)` passed as the session's
+  `connector=`); plain `http(s)://` proxies work with aiohttp's native `proxy=` kwarg
+  and need no extra package. See `backend/scripts/seed_scraper.py::AsyncHttpClient`.
 
 ## Required Patterns
 

@@ -32,3 +32,11 @@ async def invalidate_api_caches(redis: Redis, city_code: str) -> int:
     if keys:
         await redis.delete(*keys)
     return len(keys)
+
+
+async def flush_all_api_caches(redis: Redis) -> int:
+    """删除所有 api:* 缓存 key（seed 全量重导等全站数据变更后使用）。"""
+    keys = [key async for key in redis.scan_iter("api:*")]
+    if keys:
+        await redis.delete(*keys)
+    return len(keys)

@@ -55,15 +55,27 @@ async def upsert_districts(
             name=dist.name, code=dist.code, city_id=city_id
         )
         stmt = stmt.on_conflict_do_update(
-            index_elements=["code"],
-            set_={"name": stmt.excluded.name, "city_id": stmt.excluded.city_id},
+            constraint="uq_district_city_code",
+            set_={"name": stmt.excluded.name},
         )
         await session.execute(stmt)
     await session.flush()
 
+    # 短码（"高新区/经开区/丰泽区"）在多城共用，反查必须限定本次入库的 city_id
+    # 与 code 白名单，否则会拿到别城的 district_id。
+    city_ids = {
+        city_code_to_id[d.city_code]
+        for d in districts
+        if d.city_code in city_code_to_id
+    }
+    if not city_ids:
+        return {}
     dist_codes = [d.code for d in districts]
     result = await session.execute(
-        select(District.code, District.id).where(District.code.in_(dist_codes))
+        select(District.code, District.id).where(
+            District.city_id.in_(city_ids),
+            District.code.in_(dist_codes),
+        )
     )
     return dict(result.all())
 

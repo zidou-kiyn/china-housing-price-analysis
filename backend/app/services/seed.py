@@ -13,6 +13,7 @@ from sqlalchemy import func, insert, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import flush_all_api_caches, redis_client
 from app.core.database import async_session_factory
 from app.models.city import City
 from app.models.district import District
@@ -155,7 +156,7 @@ async def seed_prices_if_needed(session: AsyncSession) -> None:
     )
 
     files = sorted(_PRICE_SEED_DIR.glob("*.json"))
-    # 第一遍：插入全部区县，建立 code → id 映射（district.code 全局唯一）。
+    # 第一遍：插入全部区县，建立 (city_id, code) → id 映射（唯一键为 city_id+code 复合）。
     parsed: list[tuple[dict, int]] = []
     district_rows: list[dict] = []
     for path in files:
@@ -170,17 +171,24 @@ async def seed_prices_if_needed(session: AsyncSession) -> None:
                 {"name": d["name"], "code": d["code"], "city_id": city_id}
             )
 
-    await _insert_ignore(session, District, district_rows, index_elements=["code"])
+    await _insert_ignore(
+        session, District, district_rows, constraint="uq_district_city_code"
+    )
     await session.flush()
 
-    dist_codes = [row["code"] for row in district_rows]
-    dist_map: dict[str, int] = {}
+    # (city_id, code) → district_id：短码在不同城市重复（"高新区/经开区/丰泽区"等），
+    # 只按 code 反查会拿到别城的 district_id，导致 snapshot 落到错的行政区。
+    dist_codes = list({row["code"] for row in district_rows})
+    dist_map: dict[tuple[int, str], int] = {}
     for chunk in _chunked([{"code": c} for c in dist_codes]):
         codes = [c["code"] for c in chunk]
         result = await session.execute(
-            select(District.code, District.id).where(District.code.in_(codes))
+            select(District.city_id, District.code, District.id).where(
+                District.code.in_(codes)
+            )
         )
-        dist_map.update(dict(result.all()))
+        for city_id_, code_, dist_id_ in result.all():
+            dist_map[(city_id_, code_)] = dist_id_
 
     # 第二遍：逐城市加载时序与分布（按城市分块，控制内存）。
     total_snap = 0
@@ -195,12 +203,12 @@ async def seed_prices_if_needed(session: AsyncSession) -> None:
             distribution.get("city", []), "city", city_id, year_month
         )
         for dist_code, records in timeline.get("districts", {}).items():
-            dist_id = dist_map.get(dist_code)
+            dist_id = dist_map.get((city_id, dist_code))
             if dist_id is None:
                 continue
             snap_rows.extend(_snapshot_rows(records, "district", dist_id))
         for dist_code, records in distribution.get("districts", {}).items():
-            dist_id = dist_map.get(dist_code)
+            dist_id = dist_map.get((city_id, dist_code))
             if dist_id is None:
                 continue
             dist_rows.extend(
@@ -230,3 +238,7 @@ async def seed_prices_if_needed(session: AsyncSession) -> None:
         total_snap,
         total_dist,
     )
+    # 全站数据刚变更，抹掉所有 api:* 缓存，避免下次请求读到旧 region 结构。
+    dropped = await flush_all_api_caches(redis_client)
+    if dropped:
+        logger.info("seed 后清除 %d 个 api 缓存 key", dropped)
